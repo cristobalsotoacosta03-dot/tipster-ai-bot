@@ -1,0 +1,52 @@
+# Git attributes for Tipster IA Bot
+
+# Ensure .env files are not tracked (extra security)
+.env export-ignore
+
+# Line endings
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+
+# Logs
+*.log export-ignore
+
+# Python
+__pycache__/ export-ignore
+*.pyc export-ignore
+*.pyo export-ignore
+*.pyd export-ignore
+.venv/ export-ignore
+venv/ export-ignore
+
+# IDE
+.vscode/ export-ignore
+.idea/ export-ignore
+
+# OS
+.DS_Store export-ignore
+Thumbs.db export-ignore
+
+# Testing
+.pytest_cache/ export-ignore
+.coverage export-ignore
+htmlcov/ export-ignore
+
+# Distribution
+dist/ export-ignore
+build/ export-ignore
+*.egg-info/ export-ignore
+.eggs/ export-ignore
