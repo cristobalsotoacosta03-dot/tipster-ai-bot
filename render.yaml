@@ -1,0 +1,85 @@
+# Render.com Deployment Configuration
+# Tipster IA Bot - Production Deployment
+
+services:
+  # Main Bot Service
+  - type: worker
+    name: tipster-ia-bot
+    runtime: python
+    plan: free  # Upgrade to starter ($7/month) for production
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      # Telegram
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_ID
+        sync: false
+      - key: TELEGRAM_VIP_GROUP_ID
+        sync: false
+      
+      # Anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      
+      # Stripe
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_ID_YEARLY
+        sync: false
+      
+      # API Football
+      - key: API_FOOTBALL_KEY
+        sync: false
+      
+      # Redis (Upstash)
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      
+      # Application
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: CACHE_TTL_HOURS
+        value: 6
+      - key: MAX_ANALYSIS_PER_DAY
+        value: 100
+      - key: FREE_TIPS_PER_DAY
+        value: 2
+      
+      # Monetization
+      - key: VIP_MONTHLY_PRICE_EUR
+        value: 29.99
+      - key: VIP_YEARLY_PRICE_EUR
+        value: 299.00
+      - key: CURRENCY
+        value: EUR
+    
+    # Auto-deploy on push to main
+    autoDeploy: true
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Scaling
+    numInstances: 1
+    
+    # Disk space for database
+    disk:
+      name: tipster-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+
+# Optional: Redis Service (if not using Upstash)
+# Uncomment if you want to use Render's Redis
+#  - type: redis
+#    name: tipster-redis
+#    plan: free
+#    maxmemoryPolicy: allkeys-lru
