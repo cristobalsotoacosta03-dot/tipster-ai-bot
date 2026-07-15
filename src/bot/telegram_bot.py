@@ -17,6 +17,8 @@ import logging
 
 from config.settings import settings
 from src.utils.logger import logger
+from src.analyzer.match_analyzer import MatchAnalyzer
+from src.bot.formatters import AnalysisFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +35,17 @@ class TelegramBot:
         self.admin_id = settings.telegram_admin_id
         self.vip_group_id = settings.telegram_vip_group_id
         
+        # Initialize analysis components
+        self.match_analyzer = MatchAnalyzer()
+        self.analysis_formatter = AnalysisFormatter()
+        
         # Create application
         self.application = Application.builder().token(self.token).build()
         
         # Register handlers
         self._register_handlers()
         
-        logger.info("Telegram bot initialized")
+        logger.info("Telegram bot initialized with Match Analyzer")
     
     def _register_handlers(self) -> None:
         """Register all command and message handlers."""
@@ -143,7 +149,7 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
     async def analisis_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
         Handle /analisis command.
-        Request match analysis (placeholder for Día 2 implementation).
+        Perform complete match analysis using MatchAnalyzer.
         """
         try:
             user_id = update.effective_user.id
@@ -154,26 +160,83 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
                     "⚠️ **Uso incorrecto**\n\n"
                     "Formato: `/analisis [equipo1] vs [equipo2]`\n"
                     "Ejemplo: `/analisis Real Madrid vs Barcelona`\n\n"
-                    "💡 *Esta funcionalidad estará disponible mañana (Día 2 del sprint)*",
+                    "💡 *Necesitas mencionar ambos equipos separados por 'vs'*",
                     parse_mode="Markdown"
                 )
                 return
             
+            # Parse match query
             match_query = " ".join(context.args)
             logger.info(f"Analysis request from user {user_id}: {match_query}")
             
-            # TODO: Implement actual analysis on Día 2
-            await update.message.reply_text(
-                f"🔍 **Análisis solicitado:** {match_query}\n\n"
-                "⏳ Esta funcionalidad estará disponible mañana.\n"
-                "Estamos ultimando el motor de análisis con IA.\n\n"
-                "🎁 Mientras tanto, disfruta de nuestros tips diarios en el canal gratuito.",
+            # Send "analyzing" message
+            status_message = await update.message.reply_text(
+                "🔍 **Analizando partido...**\n\n"
+                "⏳ Esto puede tardar 10-20 segundos\n"
+                "📊 Consultando estadísticas\n"
+                "🧠 Generando análisis táctico\n\n"
+                "Por favor, espera...",
                 parse_mode="Markdown"
             )
             
+            # Parse teams (simple parsing - would be more robust in production)
+            teams = match_query.split(" vs ")
+            if len(teams) != 2:
+                await status_message.edit_text(
+                    "⚠️ **Formato incorrecto**\n\n"
+                    "Usa: `/analisis [equipo1] vs [equipo2]`\n"
+                    "Ejemplo: `/analisis Real Madrid vs Barcelona`",
+                    parse_mode="Markdown"
+                )
+                return
+            
+            home_team = teams[0].strip()
+            away_team = teams[1].strip()
+            
+            # Check if user is VIP (simplified - would check database in production)
+            user_is_vip = False  # TODO: Implement VIP check on Día 3
+            
+            # Perform analysis
+            analysis_result = await self.match_analyzer.analyze_match(
+                home_team=home_team,
+                away_team=away_team,
+                analysis_type="full" if user_is_vip else "express"
+            )
+            
+            if not analysis_result:
+                await status_message.edit_text(
+                    "❌ **Error al obtener el análisis**\n\n"
+                    "No pude encontrar datos para este partido.\n"
+                    "Prueba con otros equipos o inténtalo más tarde.",
+                    parse_mode="Markdown"
+                )
+                return
+            
+            # Format analysis for Telegram
+            formatted_message = self.analysis_formatter.format_analysis_for_telegram(
+                analysis_result,
+                user_is_vip=user_is_vip
+            )
+            
+            # Delete status message and send analysis
+            await status_message.delete()
+            
+            # Send analysis (may need to split if too long)
+            if len(formatted_message) > 4000:
+                # Split into multiple messages
+                parts = self._split_message(formatted_message, 4000)
+                for part in parts:
+                    await update.message.reply_text(part, parse_mode="Markdown")
+            else:
+                await update.message.reply_text(formatted_message, parse_mode="Markdown")
+            
+            logger.info(f"Analysis sent to user {user_id}")
+            
         except Exception as e:
             logger.error(f"Error in analisis_command: {e}", exc_info=True)
-            await update.message.reply_text("❌ Error al procesar el análisis. Por favor, inténtalo de nuevo.")
+            await update.message.reply_text(
+                "❌ Error al procesar el análisis. Por favor, inténtalo de nuevo."
+            )
     
     async def premium_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -271,13 +334,25 @@ Contacta con @TuSoporte o usa el botón de pago (próximamente).
             
             logger.info(f"Message from user {user_id}: {user_message[:50]}...")
             
-            # Simple echo with suggestion
-            await update.message.reply_text(
-                "🤔 Para solicitar un análisis, usa el comando:\n"
-                "`/analisis [equipo1] vs [equipo2]`\n\n"
-                "Ejemplo: `/analisis Real Madrid vs Barcelona`",
-                parse_mode="Markdown"
-            )
+            # Check if message looks like a match query
+            if " vs " in user_message.lower() or " vs." in user_message.lower():
+                # Suggest using /analisis command
+                await update.message.reply_text(
+                    "💡 **¿Quieres analizar ese partido?**\n\n"
+                    "Usa el comando:\n"
+                    "`/analisis " + user_message + "`\n\n"
+                    "Ejemplo: `/analisis " + user_message + "`",
+                    parse_mode="Markdown"
+                )
+            else:
+                # Default response
+                await update.message.reply_text(
+                    "🤔 Para solicitar un análisis, usa el comando:\n"
+                    "`/analisis [equipo1] vs [equipo2]`\n\n"
+                    "Ejemplo: `/analisis Real Madrid vs Barcelona`\n\n"
+                    "O escribe directamente: `Real Madrid vs Barcelona`",
+                    parse_mode="Markdown"
+                )
             
         except Exception as e:
             logger.error(f"Error in message_handler: {e}", exc_info=True)
@@ -290,9 +365,17 @@ Contacta con @TuSoporte o usa el botón de pago (próximamente).
         
         # Notify user if possible
         if update and update.effective_message:
-            await update.effective_message.reply_text(
-                "❌ Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo más tarde."
-            )
+            error_message = "❌ Ha ocurrido un error inesperado. Por favor, inténtalo de nuevo más tarde."
+            
+            # Try to get more specific error message
+            if context.error:
+                error_type = str(context.error).lower()
+                if "rate limit" in error_type:
+                    error_message = "⚠️ Demasiadas solicitudes. Por favor, espera un momento."
+                elif "timeout" in error_type:
+                    error_message = "⏱️ Tiempo de espera agotado. Inténtalo de nuevo."
+            
+            await update.effective_message.reply_text(error_message)
     
     async def send_message(self, chat_id: int, text: str, parse_mode: str = "Markdown") -> bool:
         """
@@ -365,6 +448,40 @@ Contacta con @TuSoporte o usa el botón de pago (próximamente).
         Stop the bot gracefully.
         """
         logger.info("Stopping Telegram bot...")
+        try:
+            # Close match analyzer components
+            if hasattr(self, 'match_analyzer'):
+                await self.match_analyzer.stats_fetcher.close()
+        except Exception as e:
+            logger.error(f"Error closing components: {e}")
+        
         await self.application.updater.stop()
         await self.application.stop()
         await self.application.shutdown()
+    
+    def _split_message(self, message: str, max_length: int = 4000) -> list[str]:
+        """
+        Split long message into multiple parts.
+        
+        Args:
+            message: Message to split
+            max_length: Maximum length per part
+            
+        Returns:
+            List of message parts
+        """
+        parts = []
+        current_part = ""
+        
+        for line in message.split('\n'):
+            if len(current_part) + len(line) + 1 <= max_length:
+                current_part += line + '\n'
+            else:
+                if current_part:
+                    parts.append(current_part)
+                current_part = line + '\n'
+        
+        if current_part:
+            parts.append(current_part)
+        
+        return parts

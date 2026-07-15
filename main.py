@@ -14,6 +14,8 @@ from config.settings import settings
 from src.utils.logger import logger
 from src.bot.telegram_bot import TelegramBot
 from src.analyzer.claude_client import ClaudeClient
+from src.data.database import DatabaseManager
+from src.monetization.access_control import AccessControl
 
 
 class TipsterIABot:
@@ -25,6 +27,8 @@ class TipsterIABot:
         """Initialize all components."""
         self.bot: Optional[TelegramBot] = None
         self.claude_client: Optional[ClaudeClient] = None
+        self.database: Optional[DatabaseManager] = None
+        self.access_control: Optional[AccessControl] = None
         self.running = False
         
         logger.info("=" * 60)
@@ -45,6 +49,20 @@ class TipsterIABot:
                 logger.warning("⚠️  Claude API no disponible - El bot funcionará en modo limitado")
             else:
                 logger.info("✅ Claude API conectado correctamente")
+            
+            # Initialize Database
+            logger.info("🗄️  Inicializando base de datos...")
+            self.database = DatabaseManager()
+            db_ok = self.database.health_check()
+            if not db_ok:
+                logger.warning("⚠️  Base de datos no disponible - Datos no persistentes")
+            else:
+                logger.info("✅ Base de datos conectada correctamente")
+            
+            # Initialize Access Control
+            logger.info("🔐 Inicializando control de acceso...")
+            self.access_control = AccessControl()
+            logger.info("✅ Control de acceso VIP inicializado")
             
             # Initialize Telegram bot
             logger.info("📱 Inicializando bot de Telegram...")
@@ -92,6 +110,11 @@ class TipsterIABot:
         try:
             if self.bot:
                 await self.bot.stop()
+            
+            # Close database connections
+            if self.database:
+                # SQLite doesn't need explicit close, but good practice
+                pass
             
             logger.info("✅ Bot detenido correctamente")
             logger.info("=" * 60)
