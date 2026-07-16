@@ -65,11 +65,10 @@ git push origin main
 | **Plan** | `Free` (SIN INVERSIÓN - recomendado para empezar) |
 
 **IMPORTANTE - PLAN GRATUITO:**
-- ✅ El bot se "duerme" después de 15 minutos de inactividad
-- ✅ Se despierta automáticamente cuando llega un nuevo mensaje
-- ✅ Perfecto para testing y lanzamiento inicial
-- ⚠️ Primer request después de dormir tarda 30-60 segundos
-- 💡 **Truco:** Usa UptimeRobot (gratis) para mantenerlo despierto 24/7
+- ✅ Un **Background Worker** (a diferencia de un Web Service) NO se duerme por inactividad HTTP — no tiene URL pública ni recibe tráfico web, así que ese mecanismo de "sleep" no aplica.
+- ✅ Corre de forma continua mientras tengas horas disponibles.
+- ⚠️ El plan Free incluye 750 horas/mes compartidas entre todos tus servicios free de la cuenta. Un worker corriendo 24/7 consume prácticamente todo ese cupo (~744h/mes), así que no podrás tener otro servicio free corriendo en paralelo sin quedarte sin horas.
+- 💡 No necesitas UptimeRobot ni ningún truco de "mantener despierto" — eso solo aplica a Web Services.
 
 ### 3.3 Configurar variables de entorno
 
@@ -289,57 +288,19 @@ En los logs deberías ver:
 
 ---
 
-## ⚡ PASO 7: Configurar UptimeRobot para mantener bot despierto (5 minutos)
+## ⚡ PASO 7: Monitoreo del bot (opcional)
 
-### 7.1 Por qué necesitas UptimeRobot
+### 7.1 Por qué NO necesitas UptimeRobot
 
-En plan Free, Render duerme el bot después de 15 minutos de inactividad. UptimeRobot hace ping cada 5 minutos para mantenerlo despierto 24/7.
+Este bot se despliega como **Background Worker**, no como Web Service. Los Background Workers de Render no exponen una URL pública ni se duermen por inactividad HTTP (ese comportamiento de "sleep a los 15 minutos" es exclusivo de los Web Services). No hay nada que "despertar" y no hay endpoint `/health` al que hacer ping, así que puedes saltarte cualquier truco de keep-alive.
 
-### 7.2 Configurar UptimeRobot
+Lo único a vigilar en el plan Free es el cupo de **750 horas/mes** compartidas por todos tus servicios free de la cuenta — un worker corriendo 24/7 ya consume casi todo ese cupo.
 
-1. Ve a https://uptimerobot.com/
-2. Click en **"Sign Up"** (plan gratuito)
-3. Crea cuenta con email o Google
-4. Una vez dentro, click en **"Add New Monitor"**
+### 7.2 Cómo monitorear el bot sin UptimeRobot
 
-### 7.3 Configurar monitor
-
-**Monitor Type:** HTTP(s)
-
-**Configuración:**
-- **Monitor Name:** `Tipster IA Bot`
-- **URL (or IP):** `https://tu-app.onrender.com/health`
-  - Reemplaza `tu-app` con el nombre de tu app en Render
-  - Ejemplo: `https://tipster-ia-bot.onrender.com/health`
-- **Monitoring Interval:** `5 minutes`
-- **Monitor Timeout:** `30 seconds`
-
-**Notification Settings:**
-- **Send notification when monitor goes down:** ✅ Activado
-- **Send notification when monitor comes back up:** ✅ Activado
-- **Notification Email:** tu-email@ejemplo.com
-
-**Advanced Settings:**
-- **HTTP Method:** GET
-- **Keyword Type:** Does not contain
-- **Keyword:** (dejar vacío)
-
-5. Click en **"Create Monitor"**
-
-### 7.4 Verificar funcionamiento
-
-1. Espera 5-10 minutos
-2. UptimeRobot hará el primer ping
-3. Verifica en Render → Logs que hay actividad
-4. El bot ahora estará despierto 24/7
-
-### 7.5 Límites del plan Free de UptimeRobot
-
-- ✅ 50 monitores gratuitos
-- ✅ Intervalo mínimo: 5 minutos
-- ✅ Notificaciones por email
-- ✅ Dashboard web
-- ⚠️ Solo 1 monitor necesario para este bot
+- **Logs de Render:** Dashboard → tu servicio → pestaña "Logs" para ver actividad en tiempo real.
+- **Alertas de Render:** Dashboard → Settings → Notifications, activa alertas por email si el servicio falla o se reinicia (esto sí lo ofrece Render nativamente, sin servicios externos).
+- **Prueba directa en Telegram:** la forma más simple de confirmar que sigue vivo es enviarle un comando y ver si responde.
 
 ---
 
@@ -375,10 +336,9 @@ Marca cada item cuando lo completes:
 - [ ] Logs verificados (sin errores)
 - [ ] Bot responde en Telegram
 - [ ] Comando /analisis funciona
-- [ ] UptimeRobot configurado
 
 ### Post-Deploy
-- [ ] UptimeRobot funcionando (bot despierto 24/7)
+- [ ] Alertas de Render activadas (Settings → Notifications)
 - [ ] Monitoreo activo
 - [ ] Primer análisis de prueba exitoso
 - [ ] Documentación actualizada con URL de producción
@@ -386,13 +346,6 @@ Marca cada item cuando lo completes:
 ---
 
 ## 🐛 TROUBLESHOOTING COMÚN (PLAN FREE)
-
-### Bot se duerme y tarda en responder
-
-**Solución:**
-1. Configura UptimeRobot para hacer ping cada 5 minutos
-2. URL a monitorear: `https://tu-app.onrender.com/health`
-3. Esto mantendrá el bot despierto 24/7
 
 ### Error: "Module not found"
 
@@ -420,18 +373,16 @@ pip install -r requirements.txt
 ### Bot no responde en Telegram (plan Free)
 
 **Solución:**
-1. Verifica logs en Render
-2. El bot puede estar "dormido" - espera 30-60 segundos
-3. Asegúrate de que el bot tiene permisos en el grupo VIP
-4. Verifica que el token es correcto
-5. Prueba con `/start` en chat privado primero
+1. Verifica logs en Render — si el proceso murió, Render lo reinicia automáticamente
+2. Asegúrate de que el bot tiene permisos en el grupo VIP
+3. Verifica que el token es correcto
+4. Prueba con `/start` en chat privado primero
 
 ### Error: "Database is locked"
 
 **Solución:**
 1. Verifica que el disco persistente está montado en `/opt/render/project/src/data`
 2. Reinicia el servicio en Render
-3. En plan Free, esto es normal después de que el bot se "despierte"
 
 ### Alto consumo de memoria
 
@@ -449,27 +400,17 @@ pip install -r requirements.txt
 ```bash
 # En Render → Logs, verificar:
 ✅ Sin errores críticos
-✅ Tiempo de respuesta 30-60 segundos (primera request después de dormir)
 ✅ Uso de API Claude < 80% del presupuesto diario
 ✅ Cache hit rate > 70% (para reducir costes)
-✅ Bot se despierta correctamente después de inactividad
+✅ Horas de worker dentro del cupo mensual (750h/mes en plan Free)
 ```
 
 ### Alertas recomendadas (GRATIS):
 
-**UptimeRobot (Recomendado)**
-1. Ve a https://uptimerobot.com/
-2. Crea cuenta gratuita
-3. Añade monitor HTTP(s):
-   - URL: `https://tu-app.onrender.com/health`
-   - Intervalo: 5 minutos
-   - Notificación: Email o Telegram
-4. Esto te alertará si el bot se cae
-
-**Render Alerts (Opcional)**
-Configura en Render → Settings → Alerts:
-- **Service Down:** Si no hay logs por >15 minutos
-- **High Memory:** Si memoria > 90%
+**Render Alerts (Nativo, sin servicios externos)**
+Configura en Render → Settings → Notifications:
+- **Service Down / Deploy Failed:** notificación por email automática
+- **High Memory:** si memoria > 90%
 
 ---
 
@@ -479,7 +420,6 @@ Configura en Render → Settings → Alerts:
    - [ ] Probar todos los comandos en Telegram
    - [ ] Verificar pagos con Stripe (modo TEST primero)
    - [ ] Probar acceso VIP
-   - [ ] Configurar UptimeRobot para mantener bot despierto
 
 2. **Configurar canal de captura** (2 horas)
    - Crear canal Telegram público
@@ -514,20 +454,18 @@ Configura en Render → Settings → Alerts:
 - $0 costo, sin inversión inicial
 - Suficiente para testing y primeros usuarios
 - Deploy automático desde Git
-- SSL incluido
-- 750 horas/mes (suficiente para 1 instancia 24/7 con UptimeRobot)
+- Como Background Worker, corre 24/7 sin dormirse por inactividad
 
 ⚠️ **Limitaciones:**
-- Se duerme después de 15 minutos de inactividad
-- Primer request tarda 30-60 segundos en despertar
+- 750 horas/mes compartidas entre todos tus servicios free — un worker 24/7 casi las agota por sí solo
 - No ideal para producción con muchos usuarios
 - Memoria limitada a 512MB
 
 ### Estrategia para plan Free:
 
-1. **Mantener el bot despierto:**
-   - Usar UptimeRobot (gratis) para ping cada 5 minutos
-   - URL: `https://tu-app.onrender.com/health`
+1. **Vigilar el cupo de horas:**
+   - Como Background Worker, el bot no se duerme, pero consume del cupo de 750h/mes del plan Free casi por completo si corre 24/7
+   - Si añades otro servicio free a la misma cuenta, competirán por esas horas
 
 2. **Optimizar para plan Free:**
    - Cache agresivo (12-24 horas) para reducir llamadas a Claude API
@@ -536,8 +474,8 @@ Configura en Render → Settings → Alerts:
 
 3. **Cuándo upgrade a Starter ($7/mes):**
    - Cuando tengas >10 usuarios activos/día
-   - Cuando el tiempo de respuesta de 30-60s sea problema
-   - Cuando quieras 24/7 sin interrupciones
+   - Cuando te acerques al límite de 750h/mes del plan Free
+   - Cuando quieras más memoria/CPU garantizados
    - Cuando factures >€500/mes (el bot se paga solo)
 
 ### Modo Test vs Live en Stripe:
@@ -552,7 +490,7 @@ Configura en Render → Settings → Alerts:
 
 Una vez completados todos los pasos, tu bot estará:
 - ✅ Desplegado en Render.com (plan Free - SIN INVERSIÓN)
-- ✅ Funcionando en Telegram 24/7 (con UptimeRobot)
+- ✅ Funcionando en Telegram 24/7 (Background Worker, sin necesidad de keep-alive)
 - ✅ Procesando pagos con Stripe
 - ✅ Cacheando análisis para reducir costes
 - ✅ Listo para captar clientes SIN GASTAR DINERO
@@ -565,8 +503,8 @@ Una vez completados todos los pasos, tu bot estará:
 
 - **Hosting:** $0/mes (Render Free tier)
 - **Cache:** $0/mes (Upstash Free tier: 10,000 comandos/día)
-- **Monitoreo:** $0 (UptimeRobot Free tier)
-- **Dominio:** $0 (usar URL de Render)
+- **Monitoreo:** $0 (alertas nativas de Render, sin servicios externos)
+- **Dominio:** $0 (no aplica — un Background Worker no tiene URL pública)
 - **Total:** **$0/mes** 🎉
 
 ### 📈 Cuándo invertir:

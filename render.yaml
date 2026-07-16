@@ -64,10 +64,7 @@ services:
     
     # Auto-deploy on push to main
     autoDeploy: true
-    
-    # Health check
-    healthCheckPath: /health
-    
+
     # Scaling
     numInstances: 1
     
