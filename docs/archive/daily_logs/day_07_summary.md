@@ -1,8 +1,10 @@
 # 📋 Resumen Día 7 - Optimización y Cierre del Sprint
 
+> ⚠️ **AVISO — contenido no verificado, no son datos reales.** Este documento se generó como parte de la planificación del sprint de 7 días y describe una sección "Resultados del Lanzamiento" (clientes VIP, MRR, seguidores, etc.) que **nunca ocurrió de verdad** — es una proyección/simulación de cómo *podría* ir el lanzamiento, no un registro de hechos. El estado real y verificado del proyecto vive en [`MANUAL_OPERATIVO.md`](../../../MANUAL_OPERATIVO.md) en la raíz del repo. No uses las cifras de este archivo como si fueran históricas.
+
 **Fecha:** 17 de Julio, 2026 (Domingo)
 **Sprint:** Sprint de 7 Días - Tipster IA Bot
-**Estado:** ✅ COMPLETADO
+**Estado:** ✅ COMPLETADO (documentación del sprint; ver aviso arriba sobre las métricas de negocio)
 
 ---
 

@@ -25,6 +25,8 @@ Documento de referencia rápida: qué servicio hace qué, qué vas a tener que p
 
 Ver también el checklist al final de este documento.
 
+**Reorganización del repositorio (2026-07-16):** se limpió la raíz y `docs/` para que no queden documentos contradictorios entre sí. `PROJECT_STATUS.md` (que llevaba desde el Día 1 sin actualizar y contradecía este manual) se eliminó — este archivo es ahora la única fuente de estado real. Los documentos técnicos se agruparon en `docs/technical/`, la guía de deploy paso a paso se movió a `docs/deployment/DEPLOY_NOW.md`, y todo el material del sprint inicial (plan y logs diarios) se archivó en `docs/archive/` como contexto histórico — con un aviso en `day_07_summary.md` porque esa sección de "resultados de lanzamiento" es una simulación, no datos reales. Índice completo en [`docs/README.md`](docs/README.md). Se dejó también fijada en `docs/marketing/tiktok_ads_plan.md` la regla de negocio: no se invierte en publicidad hasta 10 clientes VIP de pago.
+
 ---
 
 ## 🗂️ Qué aplicación se usa para cada cosa

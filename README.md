@@ -2,6 +2,8 @@
 
 Servicio de análisis de apuestas deportivas impulsado por Claude AI. Análisis táctico-profesional con estadísticas avanzadas para maximizar el value betting a largo plazo.
 
+> 📍 **¿Buscas el estado real del proyecto (qué está hecho, qué falta, qué se hizo en la última sesión)?** Eso vive en [`MANUAL_OPERATIVO.md`](MANUAL_OPERATIVO.md), no en este README. Para un índice completo de toda la documentación, ver [`docs/README.md`](docs/README.md).
+
 ## 📋 Características
 
 - **Análisis Inteligente:** Evaluación profunda de partidos usando Claude 3.5 Sonnet
@@ -150,49 +152,11 @@ UPSTASH_REDIS_REST_TOKEN=...
 - **Deploy:** Render.com
 - **Logs:** Colorlog con salida a archivo
 
-## 📊 Sprint de 7 Días
+## 📊 Historial: Sprint inicial de 7 días
 
-### Día 1: Fundación Técnica ✅
-- [x] Estructura de proyecto
-- [x] Configuración de entorno
-- [x] Bot básico de Telegram
-- [x] Cliente de Claude API
-- [x] Sistema de logging
+El proyecto se construyó siguiendo un sprint de 7 días (fundación técnica → motor de análisis → lógica del bot → testing → contenido → lanzamiento → optimización). El plan y los logs diarios de ese sprint están archivados en [`docs/archive/`](docs/archive/) como contexto histórico.
 
-### Día 2: Motor de Análisis ✅
-- [x] Fetcher de estadísticas deportivas
-- [x] Prompt maestro de análisis
-- [x] Sistema de cache
-- [x] Análisis end-to-end
-
-### Día 3: Lógica del Bot ✅
-- [x] Comandos completos
-- [x] Sistema de suscripciones
-- [x] Integración Stripe
-- [x] Acceso a grupo VIP
-
-### Día 4: Testing y Pulido ✅
-- [x] Testing completo (46 tests)
-- [x] Optimización de costes
-- [x] Manejo de errores
-- [x] Deploy inicial
-
-### Día 5: Contenido y Marketing ✅
-- [x] Estrategia de contenido
-- [x] Plan de lanzamiento
-- [x] Material de marketing
-
-### Día 6: Lanzamiento 🚀
-- [ ] Publicar videos en redes
-- [ ] Activar campaña de captación
-- [ ] Primeros envíos de análisis
-- [ ] Monitoreo 24/7
-
-### Día 7: Optimización
-- [ ] Análisis de métricas
-- [ ] Mejoras basadas en feedback
-- [ ] Escalar capacidad
-- [ ] Plan semana 2
+⚠️ Ese archivo incluye documentos de planificación con objetivos y simulaciones de resultados de lanzamiento — **no son un registro de hechos reales**. El estado real y verificado (deploy, pagos, usuarios) se mantiene únicamente en [`MANUAL_OPERATIVO.md`](MANUAL_OPERATIVO.md).
 
 ## 🎨 Prompt de Análisis
 

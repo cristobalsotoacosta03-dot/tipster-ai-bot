@@ -1,47 +1,50 @@
 # 📱 Plan de Publicidad TikTok - Tipster IA
 
-**Objetivo:** Conseguir 50+ clientes VIP en el primer mes con presupuesto mínimo inicial.
+**Objetivo:** Conseguir 50+ clientes VIP con presupuesto mínimo inicial.
 
 **Estrategia:** Empezar con contenido orgánico, luego escalar con publicidad pagada según resultados.
+
+> ⚠️ **Regla de inversión (no negociable):** No se gasta ni un euro en publicidad hasta alcanzar **10 clientes VIP de pago**. La fase orgánica (Fase 1) dura lo que tenga que durar — una semana, un mes o más — y no se avanza a Fase 2 sin ese hito cumplido. El gate es el hito de negocio, no el calendario.
 
 ---
 
 ## 💰 Presupuesto y Inversión
 
-### Fase 1: Orgánico Puro (Semana 1) - €0
-- 4-5 videos orgánicos
+### Fase 1: Orgánico Puro (duración indefinida, hasta 10 VIPs de pago) - €0
+- 4-5 videos orgánicos por semana, en bucle continuo
 - Publicación en horarios óptimos
 - Engagement activo con comentarios
 - Compartir en grupos y comunidades
 
-**Objetivo:** Validar qué contenido funciona mejor antes de invertir.
+**Objetivo:** Validar qué contenido funciona mejor y conseguir los primeros 10 clientes VIP de pago sin invertir nada. Esta fase puede extenderse todas las semanas que hagan falta; **no se pasa a Fase 2 sin los 10 clientes.**
 
-### Fase 2: Boost Estratégico (Semana 2) - €30-50
+### Fase 2: Boost Estratégico (arranca solo al llegar a 10 VIPs de pago) - €30-50
 - Boost de los 2-3 videos con mejor rendimiento orgánico
 - Presupuesto: €10-15 por video
 - Duración: 3-5 días por boost
 - Objetivo: Llegar a 1,000+ visualizaciones por video
 
-**Cuándo invertir:**
-- Video con >5% engagement rate orgánico
-- >100 visualizaciones orgánicas
-- Al menos 1 comentario positivo
+**Condición de entrada (ambas deben cumplirse):**
+- ✅ 10 clientes VIP de pago alcanzados (condición dura, sin excepción)
+- Video con >5% engagement rate orgánico, >100 visualizaciones orgánicas y al menos 1 comentario positivo (condición de calidad del contenido a boostear)
 
-### Fase 3: Escalamiento (Semanas 3-4) - €100-200
+### Fase 3: Escalamiento (tras validar ROAS de Fase 2) - €100-200
 - Campañas de Spark Ads
 - A/B testing de creatividades
 - Segmentación avanzada
-- Objetivo: 10-20 clientes VIP
+- Objetivo: 10-20 clientes VIP adicionales
 
-**Inversión recomendada:**
-- Semana 3: €50-70
-- Semana 4: €50-130 (según ROI)
+**Condición de entrada:** Fase 2 completada con ROAS >2x sostenido. La inversión se reparte en dos tramos según resultados, no según semana calendario:
+- Primer tramo tras Fase 2: €50-70
+- Segundo tramo (si el primero mantiene ROI): €50-130
 
-### Fase 4: Crecimiento (Mes 2+) - €300-500/mes
+### Fase 4: Crecimiento (Mes 2+ de campaña activa) - €300-500/mes
 - Campañas automatizadas
 - Lookalike audiences
 - Retargeting
 - Objetivo: 50+ clientes VIP/mes
+
+**Condición de entrada:** Solo si Fase 2-3 ya sostenían el ROAS objetivo (>3x). Si el ritmo de conversión orgánica tardó varias semanas en llegar a los 10 VIPs iniciales, todo este calendario de fases se desplaza en bloque — los importes y objetivos no cambian, solo el eje temporal.
 
 ---
 
@@ -283,27 +286,30 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 
 ## 🎯 Campañas Específicas
 
-### Campaña 1: "Lanzamiento Tipster IA" (Semana 1)
+### Campaña 1: "Lanzamiento Tipster IA" (Fase 1 — orgánico, se repite hasta cumplir el hito)
 
-**Objetivo:** Awareness y captación inicial
+**Objetivo:** Awareness y captación inicial, hasta llegar a 10 clientes VIP de pago
 **Presupuesto:** €0 (orgánico)
-**Duración:** 7 días
+**Duración:** Ciclos de 7 días, repetidos las veces que haga falta
 
 **Contenido:**
 - 4 videos orgánicos
 - Publicación diaria
 - Engagement activo
 
-**Métricas de éxito:**
+**Métricas de éxito (por ciclo semanal):**
 - 500+ visualizaciones totales
 - 100+ miembros en canal Telegram
-- 5-10 clientes VIP
+- 5-10 clientes VIP nuevos
 
-### Campaña 2: "Boost Mejores Videos" (Semana 2)
+> 🔒 No se avanza a la Campaña 2 hasta acumular 10 clientes VIP de pago en total, aunque haga falta repetir este ciclo varias semanas.
+
+### Campaña 2: "Boost Mejores Videos" (Fase 2 — arranca solo tras 10 VIPs de pago)
 
 **Objetivo:** Amplificar contenido que funciona
 **Presupuesto:** €30-50
 **Duración:** 7 días
+**Condición de entrada:** 🔒 10 clientes VIP de pago ya alcanzados en Fase 1
 
 **Anuncios:**
 1. Video 1 boost: €15 (3 días)
@@ -321,11 +327,12 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 - 10+ clientes VIP
 - ROAS: >2x
 
-### Campaña 3: "Conversión VIP" (Semana 3)
+### Campaña 3: "Conversión VIP" (Fase 3 — tras validar ROAS de Fase 2)
 
 **Objetivo:** Maximizar conversiones
 **Presupuesto:** €50-70
 **Duración:** 7 días
+**Condición de entrada:** 🔒 Campaña 2 cerrada con ROAS >2x sostenido
 
 **Anuncios:**
 1. Spark Ad: "Este Partido Tiene VALUE" - €25
@@ -344,11 +351,12 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 - ROAS: >3x
 - MRR: €450-600
 
-### Campaña 4: "Escalamiento" (Semana 4)
+### Campaña 4: "Escalamiento" (Fase 3, segundo tramo)
 
 **Objetivo:** Escalar lo que funciona
 **Presupuesto:** €100-130
 **Duración:** 7 días
+**Condición de entrada:** 🔒 Campaña 3 sostiene ROAS >3x
 
 **Anuncios:**
 1. Spark Ads (3 videos): €60
@@ -396,7 +404,9 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 
 ## 📅 Calendario de Publicación
 
-### Semana 1: Orgánico Puro
+> Este calendario es cíclico: la "Semana 1" (orgánica) se repite tal cual todas las semanas que hagan falta hasta llegar a 10 clientes VIP de pago. Las semanas 2-4 con inversión solo empiezan a contar **a partir de la semana en que se cumple ese hito** — no son semanas 2, 3 y 4 de calendario fijo, sino "1ª, 2ª y 3ª semana tras alcanzar los 10 VIPs".
+
+### Semana 1: Orgánico Puro (se repite hasta el hito de 10 VIPs de pago)
 
 **Lunes:**
 - 10:00 - Video 1: "El Error #1 de los Apostadores"
@@ -428,7 +438,7 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 - 12:00 - Actualizaciones en vivo
 - 22:00 - Resultados y estadísticas
 
-### Semana 2: Boost Estratégico
+### 1ª semana tras alcanzar 10 VIPs de pago: Boost Estratégico
 
 **Lunes:**
 - 10:00 - Publicar Video 4
@@ -450,7 +460,7 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 - Análisis de resultados
 - Optimización de campañas
 
-### Semana 3: Conversión
+### 2ª semana tras alcanzar 10 VIPs de pago: Conversión
 
 **Lunes:**
 - 10:00 - Spark Ad: "Este Partido Tiene VALUE" (€25)
@@ -472,7 +482,7 @@ Optimización: "Visitas al sitio web" o "Conversiones"
 - Monitoreo constante
 - Optimización en tiempo real
 
-### Semana 4: Escalamiento
+### 3ª semana tras alcanzar 10 VIPs de pago: Escalamiento
 
 **Lunes:**
 - 10:00 - Spark Ads (3 videos): €60 total
@@ -738,6 +748,21 @@ Ajustes para próxima semana:
 5. Añadir más testimonios
 6. Ofrecer plan semanal (prueba)
 
+### Si la fase orgánica no llega a 10 clientes de pago en 4+ semanas
+
+**Diagnóstico:**
+- ¿Los hooks y horarios ya se probaron todos (ver A/B testing)?
+- ¿El contenido llega a la audiencia correcta?
+- ¿El precio o la oferta VIP son la barrera real?
+- ¿El canal de Telegram convierte bien de visitante a suscriptor?
+
+**Soluciones:**
+1. Seguir iterando en orgánico: nuevos hooks, horarios y formatos (no adelantar la inversión paga)
+2. Revisar el pricing o probar una oferta de lanzamiento gratuita/reducida
+3. Mejorar la prueba social (resultados reales, testimonios) en el contenido orgánico
+4. Aumentar frecuencia de publicación sin gastar en ads
+5. Recordar: **el hito de 10 VIPs de pago es la única puerta de entrada a Fase 2** — no se abre por tiempo transcurrido, solo se sigue optimizando el orgánico hasta lograrlo
+
 ### Si el CPA es muy alto (>€20)
 
 **Diagnóstico:**
@@ -758,7 +783,9 @@ Ajustes para próxima semana:
 
 ## 📈 Proyecciones Financieras
 
-### Mes 1: Lanzamiento
+> Los plazos "Mes 1/2/3" son orientativos, no fechas fijas. Cuentan a partir de la semana en que se cumplen los 10 primeros clientes VIP de pago (fin de Fase 1). Si la fase orgánica tarda más en producir ese hito, todo el calendario financiero se desplaza igual de semanas — los importes y el ROI esperado no cambian.
+
+### Mes 1: Lanzamiento (arranca al cerrar Fase 1 con 10 VIPs de pago)
 
 **Inversión:**
 - Publicidad: €80-130
@@ -798,7 +825,7 @@ Ajustes para próxima semana:
 
 ## 🎓 Lecciones y Optimizaciones
 
-### Después de Semana 1
+### Después de cada ciclo de Fase 1 (orgánico)
 
 **Analizar:**
 1. ¿Qué videos tuvieron mejor engagement?
@@ -812,7 +839,7 @@ Ajustes para próxima semana:
 3. Usar CTAs que funcionaron
 4. Enfocar segmentación en audiencia que responde
 
-### Después de Semana 2
+### Después de Fase 2 (Boost Estratégico, tras el hito de 10 VIPs)
 
 **Analizar:**
 1. ¿Qué boosts tuvieron mejor ROAS?
@@ -843,6 +870,8 @@ Ajustes para próxima semana:
 ---
 
 ## 🏆 Objetivos de Publicidad
+
+> Igual que las proyecciones financieras, estos objetivos se cuentan desde el hito de los 10 primeros VIPs de pago, no desde el día de lanzamiento.
 
 ### Mes 1
 - [ ] 4 videos orgánicos publicados
@@ -894,6 +923,6 @@ Ajustes para próxima semana:
 
 **Preparado por:** Tech Lead / Product Manager  
 **Fecha:** 16/07/2026  
-**Próxima actualización:** 23/07/2026 (Post-lanzamiento)
+**Próxima actualización:** Al alcanzar el hito de 10 clientes VIP de pago (cierre de Fase 1)
 
-**Nota:** Este plan debe ejecutarse DESPUÉS de tener el bot funcionando en producción y el canal de Telegram configurado.
+**Nota:** Este plan debe ejecutarse DESPUÉS de tener el bot funcionando en producción y el canal de Telegram configurado. **No se invierte en publicidad hasta llegar a 10 clientes VIP de pago**, sin importar cuántas semanas tome la fase orgánica.
