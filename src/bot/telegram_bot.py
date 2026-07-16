@@ -178,7 +178,16 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
         """
         try:
             user_id = update.effective_user.id
-            
+
+            if not self.match_analyzer.claude_client.enabled:
+                await update.message.reply_text(
+                    "🚧 **Análisis con IA disponible muy pronto**\n\n"
+                    "Estamos ultimando esta función. Mientras tanto, sigue el canal "
+                    "para los picks gratuitos del día 👀",
+                    parse_mode="Markdown"
+                )
+                return
+
             # Check if user provided match info
             if not context.args or len(context.args) < 3:
                 await update.message.reply_text(

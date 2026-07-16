@@ -83,21 +83,28 @@ TELEGRAM_BOT_TOKEN=tu_token_de_botfather
 TELEGRAM_ADMIN_ID=tu_user_id_numérico
 TELEGRAM_VIP_GROUP_ID=-100xxxxxxxxxx
 
-# Anthropic (Claude AI)
-ANTHROPIC_API_KEY=sk-ant-api03-tu_key_aquí
-
 # Stripe (Pagos)
 STRIPE_API_KEY=sk_live_tu_key_aquí
 STRIPE_WEBHOOK_SECRET=whsec_tu_webhook_secret
 STRIPE_PRICE_ID_MONTHLY=price_xxx
 STRIPE_PRICE_ID_YEARLY=price_yyy
 
-# API Football (Estadísticas)
-API_FOOTBALL_KEY=tu_api_key_aquí
-
 # Redis Cache (Upstash)
 UPSTASH_REDIS_REST_URL=https://tu-redis.upstash.io
 UPSTASH_REDIS_REST_TOKEN=tu_token_upstash
+```
+
+#### Variables opcionales para lanzar sin invertir todavía:
+
+```bash
+# Anthropic (Claude AI) — opcional. Sin esta variable, /analisis muestra
+# "disponible muy pronto" en vez de fallar. Añádela cuando decidas invertir
+# en créditos de la API (la suscripción Claude Pro NO sirve para esto, son
+# cuentas y facturación distintas — ver aviso en el chat).
+ANTHROPIC_API_KEY=sk-ant-api03-tu_key_aquí
+
+# API Football (Estadísticas) — opcional, tiene tier gratuito (100 req/día)
+API_FOOTBALL_KEY=tu_api_key_aquí
 ```
 
 #### Variables Opcionales (con valores por defecto):

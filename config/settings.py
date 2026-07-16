@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     # ===========================================
     # ANTHROPIC API (Claude)
     # ===========================================
-    anthropic_api_key: str
+    # Optional on purpose: you can launch the bot (free tips, VIP
+    # checkout, channel) before paying for Claude API credits. Analysis
+    # simply stays unavailable until this is set.
+    anthropic_api_key: Optional[str] = None
     
     # ===========================================
     # STRIPE PAYMENTS

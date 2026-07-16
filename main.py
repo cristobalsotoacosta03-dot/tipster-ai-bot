@@ -45,14 +45,16 @@ class TipsterIABot:
             # Initialize Claude client
             logger.info("🧠 Inicializando cliente de Claude AI...")
             self.claude_client = ClaudeClient()
-            
-            # Verify Claude API connection
-            logger.info("🔍 Verificando conexión con Claude API...")
-            claude_ok = await self.claude_client.health_check()
-            if not claude_ok:
-                logger.warning("⚠️  Claude API no disponible - El bot funcionará en modo limitado")
+
+            if not self.claude_client.enabled:
+                logger.info("ℹ️  ANTHROPIC_API_KEY no configurada — /analisis quedará deshabilitado hasta que se añada")
             else:
-                logger.info("✅ Claude API conectado correctamente")
+                logger.info("🔍 Verificando conexión con Claude API...")
+                claude_ok = await self.claude_client.health_check()
+                if not claude_ok:
+                    logger.warning("⚠️  Claude API configurada pero no responde - revisa la key/saldo")
+                else:
+                    logger.info("✅ Claude API conectado correctamente")
             
             # Initialize Database
             logger.info("🗄️  Inicializando base de datos...")

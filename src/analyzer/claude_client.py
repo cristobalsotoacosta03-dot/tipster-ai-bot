@@ -19,12 +19,22 @@ class ClaudeClient:
     """
     
     def __init__(self):
-        """Initialize Claude client with API key from settings."""
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        """
+        Initialize Claude client with API key from settings.
+        If no key is configured, the client stays disabled — analyze_match
+        and health_check report unavailability instead of crashing, so the
+        bot can run (channel, VIP checkout) before Claude API credits are
+        purchased.
+        """
+        self.enabled = bool(settings.anthropic_api_key)
+        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key) if self.enabled else None
         self.model = "claude-3-5-sonnet-20241022"
         self.max_tokens = 4096
         self.temperature = 0.7
-        
+
+        if not self.enabled:
+            logger.warning("ANTHROPIC_API_KEY no configurada — el análisis con IA está deshabilitado")
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
@@ -35,7 +45,7 @@ class ClaudeClient:
         prompt: str,
         system_prompt: Optional[str] = None,
         max_tokens: Optional[int] = None
-    ) -> str:
+    ) -> Optional[str]:
         """
         Send analysis request to Claude API.
         
@@ -47,9 +57,13 @@ class ClaudeClient:
         Returns:
             Claude's analysis response
         """
+        if not self.enabled:
+            logger.warning("analyze_match called without a configured Claude API key")
+            return None
+
         try:
             logger.info(f"Sending analysis request to Claude (prompt length: {len(prompt)} chars)")
-            
+
             message = self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens or self.max_tokens,
@@ -115,6 +129,9 @@ Recuerda: El objetivo es el valor a largo plazo, no ganar siempre."""
         Returns:
             True if API is working, False otherwise
         """
+        if not self.enabled:
+            return False
+
         try:
             response = self.client.messages.create(
                 model=self.model,
