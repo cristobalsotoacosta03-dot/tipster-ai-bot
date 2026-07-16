@@ -389,6 +389,10 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
 
         except Exception as e:
             logger.error(f"Error in callback_handler: {e}", exc_info=True)
+            if update.callback_query and update.callback_query.message:
+                await update.callback_query.message.reply_text(
+                    "❌ Ha ocurrido un error al procesar tu solicitud. Inténtalo de nuevo o usa /premium de nuevo."
+                )
 
     async def _handle_checkout_callback(self, query) -> None:
         """
@@ -419,12 +423,15 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
             return
 
         label = "mensual" if price_type == "monthly" else "anual"
+        # Plain text on purpose: the Stripe URL commonly contains
+        # underscores (e.g. cs_test_...), and Telegram's legacy Markdown
+        # parser treats a lone/odd "_" as an unterminated italic marker,
+        # rejecting the whole message with no fallback to the user.
         await query.message.reply_text(
-            f"💳 **Suscripción {label} - Tipster IA VIP**\n\n"
+            f"💳 Suscripción {label} - Tipster IA VIP\n\n"
             f"Completa tu pago aquí:\n{session['url']}\n\n"
             "Una vez confirmado el pago, tu acceso VIP se activará automáticamente "
-            "y recibirás el enlace al grupo exclusivo.",
-            parse_mode="Markdown",
+            "y recibirás el enlace al grupo exclusivo."
         )
     
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
