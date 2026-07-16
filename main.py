@@ -25,10 +25,10 @@ class TipsterIABot:
     
     def __init__(self):
         """Initialize all components."""
-        self.bot: Optional[TelegramBot] = None
-        self.claude_client: Optional[ClaudeClient] = None
-        self.database: Optional[DatabaseManager] = None
-        self.access_control: Optional[AccessControl] = None
+        self.bot = None
+        self.claude_client = None
+        self.database = None
+        self.access_control = None
         self.running = False
         
         logger.info("=" * 60)

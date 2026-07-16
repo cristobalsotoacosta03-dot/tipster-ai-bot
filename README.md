@@ -6,7 +6,7 @@ Servicio de análisis de apuestas deportivas impulsado por Claude AI. Análisis 
 
 - **Análisis Inteligente:** Evaluación profunda de partidos usando Claude 3.5 Sonnet
 - **Estadísticas Avanzadas:** xG, PPDA, progresión ofensiva, eficiencia defensiva
-- **Análisis Táctico:** Sistemas de juego, pressing, transiciones,构建ción de juego
+- **Análisis Táctico:** Sistemas de juego, pressing, transiciones, construcción de juego
 - **Sistema de Monetización:** Plan gratuito + VIP con acceso a grupo exclusivo
 - **Automatización Completa:** Desde el análisis hasta el cobro y acceso automático
 
@@ -17,22 +17,24 @@ tipster-ia-bot/
 ├── src/
 │   ├── bot/                    # Lógica del bot de Telegram
 │   │   ├── telegram_bot.py    # Conexión y comandos de Telegram
-│   │   └── handlers.py        # Manejo de eventos
+│   │   └── formatters.py      # Formateo de análisis
 │   ├── analyzer/               # Motor de análisis con Claude
 │   │   ├── claude_client.py   # Cliente de Anthropic API
-│   │   └── prompt_engine.py   # Generación de prompts
+│   │   ├── prompt_engine.py   # Generación de prompts tácticos
+│   │   └── match_analyzer.py  # Orquestación de análisis
 │   ├── data/                   # Fuentes de datos
 │   │   ├── stats_fetcher.py   # Obtención de estadísticas
-│   │   └── cache_manager.py   # Cache para optimizar costes
+│   │   ├── cache_manager.py   # Cache para optimizar costes
+│   │   └── database.py        # Gestión de base de datos
 │   └── monetization/           # Sistema de pagos
 │       ├── payment_handler.py # Gestión de suscripciones
 │       └── access_control.py  # Control de acceso VIP
 ├── config/
-│   ├── prompts/                # Prompts especializados
 │   └── settings.py            # Configuración general
 ├── tests/
 ├── .env.example
 ├── requirements.txt
+├── render.yaml
 └── main.py                     # Punto de entrada
 ```
 
@@ -50,8 +52,8 @@ tipster-ia-bot/
 
 1. **Clonar el repositorio**
 ```bash
-git clone <tu-repo-url>
-cd tipster-ia-bot
+git clone https://github.com/cristobalsotoacosta03-dot/tipster-ai-bot.git
+cd tipster-ai-bot
 ```
 
 2. **Crear entorno virtual**
@@ -79,28 +81,7 @@ cp .env.example .env
 nano .env  # o usa tu editor preferido
 ```
 
-5. **Obtener credenciales necesarias:**
-
-**Telegram Bot Token:**
-- Abre Telegram y busca @BotFather
-- Envía `/newbot` y sigue las instrucciones
-- Copia el token proporcionado
-
-**Anthropic API Key:**
-- Ve a https://console.anthropic.com/
-- Crea una cuenta y genera una API key
-- Copia la key (formato: `sk-ant-api03-...`)
-
-**Stripe:**
-- Crea cuenta en https://dashboard.stripe.com/register
-- Obtén tus claves API (modo test primero)
-- Crea productos y precios para suscripciones
-
-**API-Football:**
-- Regístrate en https://www.api-football.com/
-- Obtén tu API key del plan gratuito
-
-6. **Ejecutar el bot**
+5. **Ejecutar el bot**
 ```bash
 python main.py
 ```
@@ -119,7 +100,7 @@ TELEGRAM_VIP_GROUP_ID=-1001234567890
 ANTHROPIC_API_KEY=sk-ant-api03-...
 
 # Stripe
-STRIPE_API_KEY=sk_test_...
+STRIPE_API_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_ID_MONTHLY=price_...
 STRIPE_PRICE_ID_YEARLY=price_...
@@ -178,29 +159,28 @@ UPSTASH_REDIS_REST_TOKEN=...
 - [x] Cliente de Claude API
 - [x] Sistema de logging
 
-### Día 2: Motor de Análisis
-- [ ] Fetcher de estadísticas deportivas
-- [ ] Prompt maestro de análisis
-- [ ] Sistema de cache
-- [ ] Análisis end-to-end
+### Día 2: Motor de Análisis ✅
+- [x] Fetcher de estadísticas deportivas
+- [x] Prompt maestro de análisis
+- [x] Sistema de cache
+- [x] Análisis end-to-end
 
-### Día 3: Lógica del Bot
-- [ ] Comandos completos
-- [ ] Sistema de suscripciones
-- [ ] Integración Stripe
-- [ ] Acceso a grupo VIP
+### Día 3: Lógica del Bot ✅
+- [x] Comandos completos
+- [x] Sistema de suscripciones
+- [x] Integración Stripe
+- [x] Acceso a grupo VIP
 
-### Día 4: Testing y Pulido
-- [ ] Testing completo
-- [ ] Optimización de costes
-- [ ] Manejo de errores
-- [ ] Deploy inicial
+### Día 4: Testing y Pulido ✅
+- [x] Testing completo (46 tests)
+- [x] Optimización de costes
+- [x] Manejo de errores
+- [x] Deploy inicial
 
-### Día 5: Contenido y Marketing
-- [ ] Canal Telegram de captación
-- [ ] 5 videos cortos para redes
-- [ ] Copywriting del funnel
-- [ ] Material de lanzamiento
+### Día 5: Contenido y Marketing ✅
+- [x] Estrategia de contenido
+- [x] Plan de lanzamiento
+- [x] Material de marketing
 
 ### Día 6: Lanzamiento 🚀
 - [ ] Publicar videos en redes
