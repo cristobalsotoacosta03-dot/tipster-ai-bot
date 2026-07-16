@@ -8,6 +8,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Shown on every analysis (free or VIP), per PRINCIPIOS_IA.md: the service
+# never promises profitability, so every pronóstico carries this alongside
+# it, not just the sales material.
+RESPONSIBLE_GAMBLING_DISCLAIMER = (
+    "⚠️ Análisis con fines informativos, no garantiza resultados. "
+    "+18. Juega con responsabilidad — juegoseguro.org"
+)
+
 
 class AnalysisFormatter:
     """
@@ -42,8 +50,10 @@ class AnalysisFormatter:
             match_data = analysis_result.get("match_data", {})
             analysis_type = analysis_result.get("analysis_type", "full")
             
-            # For VIP users, return the full analysis
-            if user_is_vip and analysis_type == "premium":
+            # VIP users always get the premium layout: a paying user should
+            # never see the "subscribe to VIP" upsell hooks meant for free
+            # users, regardless of which analysis_type the caller requested.
+            if user_is_vip:
                 return self._format_premium_analysis(analysis_result)
             
             # For free users or express, format with commercial hooks
@@ -51,7 +61,8 @@ class AnalysisFormatter:
                 analysis_text,
                 match_data,
                 analysis_type,
-                user_is_vip
+                user_is_vip,
+                analysis_result,
             )
             
             return formatted
@@ -65,17 +76,19 @@ class AnalysisFormatter:
         analysis_text: str,
         match_data: Dict[str, Any],
         analysis_type: str,
-        user_is_vip: bool
+        user_is_vip: bool,
+        analysis_result: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Format analysis with Preferente-style language and VIP hooks.
-        
+
         Args:
             analysis_text: Raw analysis from Claude
             match_data: Match data dictionary
             analysis_type: Type of analysis
             user_is_vip: Whether user has VIP access
-            
+            analysis_result: Full analysis result (for confidence/stake)
+
         Returns:
             Formatted message with hooks
         """
@@ -97,18 +110,25 @@ class AnalysisFormatter:
         
         # Add Preferente-style reading
         preferente_insight = self._generate_preferente_insight(match_data)
-        
+
+        # Structured stake + confidence block (visual bar, no guarantees)
+        prediction_block = self._format_prediction_block(analysis_result or {})
+
         # Commercial hook for VIP
         vip_hook = self._generate_vip_hook(match_data, analysis_type)
-        
+
         # Combine all parts
-        complete_message = header + formatted_analysis + "\n" + preferente_insight + "\n" + vip_hook
-        
+        parts = [header, formatted_analysis, "\n", preferente_insight]
+        if prediction_block:
+            parts += ["\n", prediction_block]
+        parts += ["\n", vip_hook, "\n", RESPONSIBLE_GAMBLING_DISCLAIMER]
+        complete_message = "\n".join(parts)
+
         # Ensure we don't exceed Telegram limit
         if len(complete_message) > self.max_message_length:
             complete_message = complete_message[:self.max_message_length - 100]
             complete_message += "\n\n... (continúa en VIP)"
-        
+
         return complete_message
     
     def _extract_tactical_summary(self, analysis_text: str) -> str:
@@ -191,6 +211,43 @@ class AnalysisFormatter:
         
         return f"━━━━━━━━━━━━━━━━━━━━\n📝 **Lo que ve un jugador de Preferente:**\n\n{insight_text}\n━━━━━━━━━━━━━━━━━━━━"
     
+    def _confidence_bar(self, confidence: int) -> str:
+        """
+        Render confidence as a 5-block visual bar plus a modest tier label
+        (never "seguro"/"garantizado" — see PRINCIPIOS_IA.md).
+        """
+        filled = min(5, max(0, round(confidence / 20)))
+        bar = "🟩" * filled + "⬜" * (5 - filled)
+
+        if confidence >= 80:
+            label = "alta"
+        elif confidence >= 65:
+            label = "media-alta"
+        elif confidence >= 50:
+            label = "media"
+        else:
+            label = "baja"
+
+        return f"{bar} confianza {label} ({confidence}%)"
+
+    def _format_prediction_block(self, analysis_result: Dict[str, Any]) -> Optional[str]:
+        """
+        Structured, scannable pronóstico block: stake + visual confidence
+        bar. Returns None if the result doesn't carry confidence/stake data
+        (e.g. cached results from before this field existed).
+        """
+        confidence = analysis_result.get("confidence_level")
+        stake = analysis_result.get("stake")
+
+        if confidence is None or stake is None:
+            return None
+
+        return (
+            "🎯 **Pronóstico**\n"
+            f"Stake: {stake}/5 unidades\n"
+            f"{self._confidence_bar(confidence)}"
+        )
+
     def _generate_vip_hook(self, match_data: Dict[str, Any], analysis_type: str) -> str:
         """
         Generate commercial hook for VIP conversion.
@@ -261,20 +318,26 @@ Este es un vistazo. El análisis VIP incluye:
     def _format_premium_analysis(self, analysis_result: Dict[str, Any]) -> str:
         """Format premium analysis for VIP users."""
         analysis_text = analysis_result.get("analysis", "")
-        
+
         # Add VIP badge
         vip_header = "👑 **ANÁLISIS PREMIUM - VIP**\n"
         vip_header += "═" * 35 + "\n\n"
-        
+
         # Add the full analysis
         formatted = vip_header + analysis_text
-        
+
+        # Structured stake + confidence block (visual bar, no guarantees)
+        prediction_block = self._format_prediction_block(analysis_result)
+        if prediction_block:
+            formatted += "\n\n" + "─" * 35 + "\n" + prediction_block
+
         # Add VIP footer
         vip_footer = "\n\n" + "═" * 35
         vip_footer += "\n✅ **Acceso VIP activo**"
         vip_footer += "\n📊 Próximo análisis: Mañana 10:00"
         vip_footer += "\n💬 Grupo VIP: @TipsterIA_VIP"
-        
+        vip_footer += "\n\n" + RESPONSIBLE_GAMBLING_DISCLAIMER
+
         return formatted + vip_footer
     
     def format_error(self, error_type: str = "general") -> str:

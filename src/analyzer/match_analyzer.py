@@ -98,6 +98,8 @@ class MatchAnalyzer:
                 "analysis": analysis_text,
                 "match_data": match_data,
                 "prompt_used": prompt,
+                "confidence_level": self.prompt_engine.calculate_confidence(match_data),
+                "stake": self.prompt_engine.calculate_stake(match_data),
                 "from_cache": False,
                 "timestamp": logging.Formatter().formatTime(logging.LogRecord(
                     name="", level=0, pathname="", lineno=0, msg="", args=(), exc_info=None

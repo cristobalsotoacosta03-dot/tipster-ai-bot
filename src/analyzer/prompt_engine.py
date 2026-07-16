@@ -434,6 +434,16 @@ $live_tracking_indicators"""
             logger.error(f"Error generating premium prompt: {e}", exc_info=True)
             raise
     
+    def calculate_confidence(self, match_data: Dict[str, Any]) -> int:
+        """Public wrapper: confidence level (0-100) for a given match, so
+        callers outside the prompt (e.g. the Telegram formatter) can render
+        it without duplicating the heuristic."""
+        return self._calculate_confidence(match_data)
+
+    def calculate_stake(self, match_data: Dict[str, Any]) -> int:
+        """Public wrapper: recommended stake (1-5 units) for a given match."""
+        return self._calculate_stake(match_data)
+
     def _enrich_with_tactical_analysis(self, match_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Enrich match data with tactical analysis and derived metrics.
@@ -645,8 +655,30 @@ $live_tracking_indicators"""
         else:
             return "Control de juego y paciencia ofensiva"
     
+    def _determine_tactical_advantage(self, match_data: Dict) -> str:
+        """Determine which team has the clearer tactical edge, comparing
+        pressing (PPDA) and attacking output (xG) between both teams."""
+        home_ppda = match_data.get("home_ppda", 10)
+        away_ppda = match_data.get("away_ppda", 10)
+        home_xg = match_data.get("home_xg", 1.5)
+        away_xg = match_data.get("away_xg", 1.5)
+
+        ppda_diff = away_ppda - home_ppda  # positive => home presses more
+        xg_diff = home_xg - away_xg
+
+        if ppda_diff > 3 and xg_diff > 0.3:
+            return "LOCAL domina por pressing más intenso y mayor generación de peligro"
+        elif ppda_diff < -3 and xg_diff < -0.3:
+            return "VISITANTE domina por pressing más intenso y mayor generación de peligro"
+        elif abs(ppda_diff) > 3:
+            return f"{'LOCAL' if ppda_diff > 0 else 'VISITANTE'} presiona claramente más arriba"
+        elif abs(xg_diff) > 0.3:
+            return f"{'LOCAL' if xg_diff > 0 else 'VISITANTE'} genera más peligro ofensivo"
+        else:
+            return "Equilibrio táctico - sin ventaja clara en pressing ni generación de peligro"
+
     # ==================== PHYSICAL ANALYSIS METHODS ====================
-    
+
     def _calculate_fatigue_advantage(self, match_data: Dict) -> str:
         """Calculate which team has physical advantage."""
         home_rest = match_data.get("home_rest_days", 7)

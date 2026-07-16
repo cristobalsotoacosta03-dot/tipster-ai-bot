@@ -241,11 +241,14 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
             home_team = teams[0].strip()
             away_team = teams[1].strip()
 
-            # Perform analysis
+            # Perform analysis. "premium" here is what routes the formatter
+            # to _format_premium_analysis below — passing "full" meant VIP
+            # users were silently served the free/express layout with the
+            # "subscribe to VIP" upsell hooks, despite already being VIP.
             analysis_result = await self.match_analyzer.analyze_match(
                 home_team=home_team,
                 away_team=away_team,
-                analysis_type="full" if user_is_vip else "express"
+                analysis_type="premium" if user_is_vip else "express"
             )
 
             if not analysis_result:
