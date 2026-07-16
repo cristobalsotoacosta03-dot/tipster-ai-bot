@@ -15,6 +15,15 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
+      # Pin the Python runtime: without this Render picks the newest
+      # available (3.14 as of writing), and pydantic-core==2.14.6 has no
+      # prebuilt wheel for it, so pip tries to compile it from Rust source
+      # and fails (Render's build sandbox has a read-only Cargo cache).
+      # Also present as a .python-version file for services created outside
+      # this blueprint (e.g. via "New Web Service" in the dashboard), which
+      # doesn't read render.yaml.
+      - key: PYTHON_VERSION
+        value: 3.11.9
       # Telegram
       - key: TELEGRAM_BOT_TOKEN
         sync: false
