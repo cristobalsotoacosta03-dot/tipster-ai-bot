@@ -17,6 +17,7 @@ from src.bot.telegram_bot import TelegramBot
 from src.analyzer.claude_client import ClaudeClient
 from src.data.database import DatabaseManager
 from src.monetization.access_control import AccessControl
+from src.monetization.payment_handler import PaymentHandler
 
 
 class TipsterIABot:
@@ -30,6 +31,7 @@ class TipsterIABot:
         self.claude_client = None
         self.database = None
         self.access_control = None
+        self.payment_handler = None
         self.running = False
         self._stop_event: asyncio.Event | None = None
         
@@ -63,12 +65,21 @@ class TipsterIABot:
             
             # Initialize Access Control
             logger.info("🔐 Inicializando control de acceso...")
-            self.access_control = AccessControl()
+            self.access_control = AccessControl(database=self.database)
             logger.info("✅ Control de acceso VIP inicializado")
-            
+
+            # Initialize Payment Handler
+            logger.info("💳 Inicializando gestor de pagos...")
+            self.payment_handler = PaymentHandler()
+            logger.info("✅ Gestor de pagos inicializado")
+
             # Initialize Telegram bot
             logger.info("📱 Inicializando bot de Telegram...")
-            self.bot = TelegramBot()
+            self.bot = TelegramBot(
+                database=self.database,
+                access_control=self.access_control,
+                payment_handler=self.payment_handler,
+            )
             logger.info("✅ Bot de Telegram inicializado")
             
             logger.info("=" * 60)

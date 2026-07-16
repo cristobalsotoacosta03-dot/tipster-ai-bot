@@ -230,7 +230,62 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error getting user {user_id}: {e}", exc_info=True)
             return None
-    
+
+    def get_user_by_stripe_customer_id(self, customer_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get user by their Stripe customer ID.
+
+        Args:
+            customer_id: Stripe customer ID
+
+        Returns:
+            User dictionary or None
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("SELECT * FROM users WHERE stripe_customer_id = ?", (customer_id,))
+            row = cursor.fetchone()
+
+            conn.close()
+
+            return dict(row) if row else None
+
+        except Exception as e:
+            logger.error(f"Error getting user by Stripe customer {customer_id}: {e}", exc_info=True)
+            return None
+
+    def set_stripe_customer_id(self, user_id: int, stripe_customer_id: str) -> bool:
+        """
+        Link a Telegram user to their Stripe customer ID.
+
+        Args:
+            user_id: Telegram user ID
+            stripe_customer_id: Stripe customer ID
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE users
+                SET stripe_customer_id = ?, updated_at = ?
+                WHERE user_id = ?
+            """, (stripe_customer_id, datetime.now().isoformat(), user_id))
+
+            conn.commit()
+            conn.close()
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error linking Stripe customer for user {user_id}: {e}", exc_info=True)
+            return False
+
     def update_vip_status(
         self,
         user_id: int,

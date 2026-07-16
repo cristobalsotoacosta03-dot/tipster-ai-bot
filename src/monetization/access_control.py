@@ -16,44 +16,65 @@ class AccessControl:
     Manages VIP access control and permissions.
     Checks subscription status and manages group access.
     """
-    
-    def __init__(self):
-        """Initialize access control."""
-        # In production, this would use a database
-        # For now, we'll use in-memory storage
+
+    def __init__(self, database=None):
+        """
+        Initialize access control.
+
+        Args:
+            database: Optional DatabaseManager. When provided, it's the
+                source of truth for VIP status (survives across the
+                in-memory cache below being cold on a fresh restart);
+                without it, VIP status only lives in memory for the
+                lifetime of the process.
+        """
+        self.database = database
         self.vip_users: Dict[int, Dict[str, Any]] = {}
         self.user_analyses: Dict[int, Dict[str, Any]] = {}
-        
+
         logger.info("Access Control initialized")
-    
+
     def is_vip_user(self, user_id: int) -> bool:
         """
         Check if user has active VIP subscription.
-        
+
         Args:
             user_id: Telegram user ID
-            
+
         Returns:
             True if user is VIP, False otherwise
         """
-        if user_id not in self.vip_users:
-            return False
-        
-        user_data = self.vip_users[user_id]
-        
-        # Check if subscription is still active
-        if user_data.get("expires_at"):
-            expires_at = datetime.fromisoformat(user_data["expires_at"])
-            if datetime.now() < expires_at:
-                return True
-            else:
-                # Subscription expired, remove from VIP
+        if user_id in self.vip_users:
+            user_data = self.vip_users[user_id]
+            if user_data.get("expires_at"):
+                expires_at = datetime.fromisoformat(user_data["expires_at"])
+                if datetime.now() < expires_at:
+                    return True
                 logger.info(f"VIP subscription expired for user {user_id}")
                 del self.vip_users[user_id]
                 return False
-        
+
+        # Fall back to the database (e.g. after a restart wiped the
+        # in-memory cache, or this process never saw the grant happen).
+        if self.database:
+            db_user = self.database.get_user(user_id)
+            if db_user and db_user.get("is_vip"):
+                expires_at_str = db_user.get("vip_expires_at")
+                if expires_at_str:
+                    expires_at = datetime.fromisoformat(expires_at_str)
+                    if datetime.now() < expires_at:
+                        self.vip_users[user_id] = {
+                            "user_id": user_id,
+                            "username": db_user.get("username"),
+                            "subscription_type": db_user.get("subscription_type"),
+                            "granted_at": db_user.get("vip_started_at"),
+                            "expires_at": expires_at_str,
+                            "is_active": True,
+                        }
+                        return True
+
         return False
-    
+
     def grant_vip_access(
         self,
         user_id: int,
@@ -63,19 +84,19 @@ class AccessControl:
     ) -> bool:
         """
         Grant VIP access to user.
-        
+
         Args:
             user_id: Telegram user ID
             username: Telegram username
             subscription_type: "monthly" or "yearly"
             duration_days: Duration of subscription in days
-            
+
         Returns:
             True if successful, False otherwise
         """
         try:
             expires_at = datetime.now() + timedelta(days=duration_days)
-            
+
             self.vip_users[user_id] = {
                 "user_id": user_id,
                 "username": username,
@@ -84,10 +105,28 @@ class AccessControl:
                 "expires_at": expires_at.isoformat(),
                 "is_active": True
             }
-            
+
+            if self.database:
+                # update_vip_status is a plain UPDATE — make sure the user
+                # row exists first (e.g. a payment can complete without the
+                # user ever having sent /start in this exact flow).
+                if not self.database.get_user(user_id):
+                    self.database.create_or_update_user(
+                        user_id=user_id,
+                        username=username,
+                        first_name="",
+                        last_name="",
+                    )
+                self.database.update_vip_status(
+                    user_id=user_id,
+                    is_vip=True,
+                    subscription_type=subscription_type,
+                    expires_at=expires_at.isoformat(),
+                )
+
             logger.info(f"VIP access granted to user {user_id} ({username}) - {subscription_type}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error granting VIP access: {e}", exc_info=True)
             return False
@@ -103,13 +142,17 @@ class AccessControl:
             True if successful, False otherwise
         """
         try:
-            if user_id in self.vip_users:
+            existed = user_id in self.vip_users
+            if existed:
                 del self.vip_users[user_id]
+
+            if self.database:
+                self.database.update_vip_status(user_id=user_id, is_vip=False)
+
+            if existed:
                 logger.info(f"VIP access revoked for user {user_id}")
-                return True
-            
-            return False
-            
+            return existed
+
         except Exception as e:
             logger.error(f"Error revoking VIP access: {e}", exc_info=True)
             return False
@@ -137,28 +180,6 @@ class AccessControl:
             "days_remaining": (expires_at - datetime.now()).days,
             "username": user_data.get("username")
         }
-    
-    def send_vip_invite(self, user_id: int) -> Optional[str]:
-        """
-        Generate VIP group invite link.
-        
-        Args:
-            user_id: Telegram user ID
-            
-        Returns:
-            Invite link or None
-        """
-        try:
-            # In production, this would use Telegram API to create invite link
-            # For now, return a placeholder
-            invite_link = f"https://t.me/+{settings.telegram_vip_group_id}"
-            
-            logger.info(f"VIP invite generated for user {user_id}")
-            return invite_link
-            
-        except Exception as e:
-            logger.error(f"Error generating VIP invite: {e}", exc_info=True)
-            return None
     
     def check_analysis_limit(self, user_id: int) -> Dict[str, Any]:
         """

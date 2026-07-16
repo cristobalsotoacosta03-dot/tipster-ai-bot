@@ -31,23 +31,26 @@ class PaymentHandler:
         self,
         user_id: int,
         username: str,
-        price_type: str = "monthly"
+        price_type: str = "monthly",
+        bot_username: str = "TuBot"
     ) -> Optional[Dict[str, Any]]:
         """
         Create Stripe checkout session for subscription.
-        
+
         Args:
             user_id: Telegram user ID
             username: Telegram username
             price_type: "monthly" or "yearly"
-            
+            bot_username: Telegram bot username (without @), used to build
+                the redirect links back into the chat after checkout
+
         Returns:
             Checkout session dictionary with URL
         """
         try:
             # Select price ID
             price_id = self.monthly_price_id if price_type == "monthly" else self.yearly_price_id
-            
+
             # Create checkout session
             session = stripe.checkout.Session.create(
                 customer_email=None,  # Will be collected by Stripe
@@ -59,8 +62,8 @@ class PaymentHandler:
                     }
                 ],
                 mode="subscription",
-                success_url="https://t.me/TuBot?start=success",
-                cancel_url="https://t.me/TuBot?start=cancel",
+                success_url=f"https://t.me/{bot_username}?start=success",
+                cancel_url=f"https://t.me/{bot_username}?start=cancel",
                 metadata={
                     "user_id": str(user_id),
                     "username": username or "unknown",
@@ -128,16 +131,20 @@ class PaymentHandler:
     
     def _handle_checkout_completed(self, session: Dict) -> Dict[str, Any]:
         """Handle checkout.session.completed event."""
-        user_id = session.get("metadata", {}).get("user_id")
+        metadata = session.get("metadata", {})
+        user_id = metadata.get("user_id")
         subscription_id = session.get("subscription")
-        
+
         logger.info(f"Checkout completed for user {user_id}, subscription: {subscription_id}")
-        
+
         return {
             "event": "checkout_completed",
             "user_id": int(user_id) if user_id else None,
+            "username": metadata.get("username"),
+            "price_type": metadata.get("price_type", "monthly"),
             "subscription_id": subscription_id,
             "customer_id": session.get("customer"),
+            "amount_total": (session.get("amount_total") or 0) / 100,
         }
     
     def _handle_subscription_created(self, subscription: Dict) -> Dict[str, Any]:
@@ -258,20 +265,22 @@ class PaymentHandler:
             logger.error(f"Error canceling subscription: {e}", exc_info=True)
             return False
     
-    def create_customer_portal_session(self, customer_id: str) -> Optional[str]:
+    def create_customer_portal_session(self, customer_id: str, bot_username: str = "TuBot") -> Optional[str]:
         """
         Create customer portal session for managing subscription.
-        
+
         Args:
             customer_id: Stripe customer ID
-            
+            bot_username: Telegram bot username (without @), used to build
+                the return link back into the chat
+
         Returns:
             Portal session URL
         """
         try:
             session = stripe.billing_portal.Session.create(
                 customer=customer_id,
-                return_url="https://t.me/TuBot"
+                return_url=f"https://t.me/{bot_username}"
             )
             
             return session.url

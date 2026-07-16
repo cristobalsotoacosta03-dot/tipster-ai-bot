@@ -177,7 +177,7 @@ CURRENCY=EUR
 
 ## ⚡ PASO 4: Configurar Webhook de Stripe (5 minutos)
 
-> ⚠️ **Bloqueante:** `src/monetization/payment_handler.py` ya sabe procesar estos eventos (`handle_webhook()`), pero ninguna ruta HTTP del bot lo invoca todavía — `/webhook/stripe` no existe en el servidor. Si configuras el endpoint ahora, Stripe recibirá 404 en cada evento y **ningún pago activará el VIP automáticamente**. Además, `analisis_command` en `telegram_bot.py` tiene el chequeo de VIP hardcodeado a `False` (hay un `# TODO: Implement VIP check` en el código). Puedes seguir estos pasos para dejar la configuración lista en Stripe, pero el flujo de pago→VIP no funcionará de extremo a extremo hasta que se implemente esa ruta y el chequeo real de VIP.
+Ya implementado en el código: `/premium` genera un enlace de pago real de Stripe Checkout, y `POST /webhook/stripe` recibe la confirmación, activa el VIP en base de datos, y le manda al usuario un enlace de invitación real y de un solo uso al grupo VIP (usando la API de Telegram — el bot necesita ser **admin del grupo VIP** con permiso para invitar usuarios, igual que ya lo es en el canal gratuito). Solo falta configurar el endpoint en el dashboard de Stripe:
 
 ### 4.1 Obtener URL de tu bot
 
@@ -510,7 +510,7 @@ Configura en Render → Settings → Notifications:
 Una vez completados todos los pasos, tu bot estará:
 - ✅ Desplegado en Render.com (plan Free - SIN INVERSIÓN)
 - ✅ Funcionando en Telegram (modo webhook + UptimeRobot para evitar el sleep)
-- ⚠️ El cobro con Stripe funciona, pero activar el VIP tras el pago aún requiere implementar la ruta `/webhook/stripe` (ver aviso en Paso 4)
+- ✅ Procesando pagos con Stripe y activando el VIP automáticamente
 - ✅ Cacheando análisis para reducir costes
 - ✅ Listo para captar clientes SIN GASTAR DINERO
 
