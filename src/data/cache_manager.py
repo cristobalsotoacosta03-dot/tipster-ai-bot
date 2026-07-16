@@ -279,10 +279,10 @@ class CacheManager:
         """
         try:
             if self.enabled:
-                info = self.redis.info()
+                # upstash-redis's REST API doesn't expose INFO; dbsize is
+                # the one stat it does give us for free.
                 return {
                     "enabled": True,
-                    "used_memory": info.get("used_memory_human", "N/A"),
                     "total_keys": self.redis.dbsize(),
                     "hit_rate": "N/A",  # Would need to track this
                 }
