@@ -4,6 +4,29 @@ Documento de referencia rápida: qué servicio hace qué, qué vas a tener que p
 
 ---
 
+## 📍 Dónde nos quedamos (última sesión: 2026-07-16)
+
+**Contexto para retomar en otro PC / otra sesión con Claude:** este proyecto es un bot de Telegram (`@IdG_analisis_bot`) que da pronósticos de apuestas deportivas, con un canal gratis y un grupo VIP de pago vía Stripe. Está desplegado gratis en Render (Web Service, modo webhook) desde el repo de GitHub `cristobalsotoacosta03-dot/tipster-ai-bot`, rama `main`, con auto-deploy en cada push.
+
+**Lo que se hizo en esta sesión (de cero a desplegado):**
+- Se auditó el proyecto recién subido a GitHub y se encontraron/corrigieron bugs reales: `main.py` llamaba a un método bloqueante desde dentro de un event loop ya activo (crash garantizado), y el manejador de señales apuntaba a un método inexistente.
+- Render eliminó el plan Free para "Background Worker" (mínimo $7/mes) — se migró el bot de modo *polling* a modo *webhook* (servidor `aiohttp` propio con `GET /`, `GET /health` y `POST /<token>`) para poder desplegar como **Web Service**, que sí tiene plan Free.
+- Se cerró el flujo de negocio completo: `/start` registra usuario en BD, `/analisis` comprueba VIP real y límite diario gratuito (antes estaba todo hardcodeado/sin implementar), `/premium` genera checkout real de Stripe, y se añadió la ruta `POST /webhook/stripe` que activa el VIP automáticamente, guarda el pago, y genera una invitación real de un solo uso al grupo VIP vía API de Telegram (antes esto no existía / era un enlace falso).
+- Se hizo `ANTHROPIC_API_KEY` opcional para poder lanzar sin pagar la API de Claude todavía — decisión de negocio: lanzar ya con picks manuales gratis + VIP de pago, invertir en la API de Claude solo cuando haya ventas VIP en cola.
+- Se arreglaron 3 rondas de errores de build en Render: `upstash-redis==0.1.0` no existía en PyPI (fijado a `1.7.0`), `stripe==7.8.0` estaba yanked (fijado a `7.8.2`), y Render usaba Python 3.14 por defecto sin wheel para `pydantic-core` (fijado a `3.11.9` vía `.python-version`).
+- Se limpiaron 4 archivos huérfanos en la raíz del repo (residuos de un merge conflict).
+- **Confirmado funcionando:** build pasa en Render, `/start` responde bien en Telegram (probado con captura real), webhook de Stripe creado y con el `whsec_...` puesto en Render, Redis de Upstash creado y conectado, UptimeRobot con monitor a `/health` cada 5 min creado.
+
+**Pendiente para la próxima sesión (en orden de prioridad):**
+1. Confirmar que el bot es **admin del grupo VIP** con permiso de invitar usuarios — sin esto, el enlace de invitación tras el pago falla silenciosamente (queda en logs de Render).
+2. Hacer un **pago de prueba real** en Stripe para validar de punta a punta que el webhook activa el VIP y llega la invitación al grupo.
+3. Cuando haya ventas VIP encadenadas: comprar créditos reales en `console.anthropic.com` y sustituir el placeholder `sk-ant-api03-PENDIENTE_DE_VALIDACION` en `ANTHROPIC_API_KEY` (Render → Environment).
+4. Antes de escalar con clientes de pago reales: resolver que la base de datos SQLite no es persistente en el plan Free de Render (se borra en cada redeploy) — subir a Starter o migrar a un Postgres externo gratuito.
+
+Ver también el checklist al final de este documento.
+
+---
+
 ## 🗂️ Qué aplicación se usa para cada cosa
 
 | Servicio | Para qué | Dónde entrar |
