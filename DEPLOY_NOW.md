@@ -1,6 +1,6 @@
-# 🚀 DEPLOY EN PRODUCCIÓN - GUÍA EJECUTABLE
+# 🚀 DEPLOY EN PRODUCCIÓN - GUÍA EJECUTABLE (PLAN GRATUITO)
 
-Guía paso a paso para desplegar Tipster IA Bot en Render.com **AHORA**.
+Guía paso a paso para desplegar Tipster IA Bot en Render.com **SIN INVERSIÓN INICIAL**.
 
 ---
 
@@ -62,11 +62,14 @@ git push origin main
 | **Environment** | `Python 3` |
 | **Build Command** | `pip install -r requirements.txt` |
 | **Start Command** | `python main.py` |
-| **Plan** | `Free` (para testing) o `Starter ($7/mes)` (para producción) |
+| **Plan** | `Free` (SIN INVERSIÓN - recomendado para empezar) |
 
-**IMPORTANTE:** 
-- Si usas plan Free, el bot se "duerme" después de 15 minutos de inactividad
-- Para producción 24/7, usa plan **Starter ($7/mes)**
+**IMPORTANTE - PLAN GRATUITO:**
+- ✅ El bot se "duerme" después de 15 minutos de inactividad
+- ✅ Se despierta automáticamente cuando llega un nuevo mensaje
+- ✅ Perfecto para testing y lanzamiento inicial
+- ⚠️ Primer request después de dormir tarda 30-60 segundos
+- 💡 **Truco:** Usa UptimeRobot (gratis) para mantenerlo despierto 24/7
 
 ### 3.3 Configurar variables de entorno
 
@@ -161,7 +164,7 @@ CURRENCY=EUR
    - REST URL: `https://xxx.upstash.io`
    - REST Token: `tu-token`
 
-### 3.4 Configurar disco persistente
+### 3.4 Configurar disco persistente (OPCIONAL en plan Free)
 
 1. Scroll down hasta **"Disk"**
 2. Click en **"Add Disk"**
@@ -171,7 +174,10 @@ CURRENCY=EUR
    - **Size:** `1 GB`
 4. Click **"Save"**
 
-**Nota:** Esto es necesario para que la base de datos SQLite persista entre deployments.
+**Nota:** 
+- En plan Free, el disco persiste pero el servicio se duerme
+- La base de datos SQLite se mantiene entre deployments
+- Para producción 24/7, considera upgrade a plan Starter ($7/mes)
 
 ---
 
@@ -264,7 +270,7 @@ Deploying... (30 segundos)
 1. Envía `/analisis`
 2. El bot debería pedirte un partido
 3. Prueba con: `Real Madrid vs Barcelona`
-4. Espera 10-20 segundos
+4. Espera 10-20 segundos (30-60s si el bot estaba dormido)
 5. Deberías recibir el análisis completo
 
 ### 6.3 Verificar base de datos
@@ -283,28 +289,57 @@ En los logs deberías ver:
 
 ---
 
-## ⚡ PASO 7: Configurar Auto-Deploy (2 minutos)
+## ⚡ PASO 7: Configurar UptimeRobot para mantener bot despierto (5 minutos)
 
-### 7.1 Activar auto-deploy
+### 7.1 Por qué necesitas UptimeRobot
 
-1. Ve a tu servicio en Render
-2. Click en **"Settings"**
-3. Scroll hasta **"Auto-Deploy"**
-4. Activa **"Auto-Deploy on push to main"**
-5. Click **"Save"**
+En plan Free, Render duerme el bot después de 15 minutos de inactividad. UptimeRobot hace ping cada 5 minutos para mantenerlo despierto 24/7.
 
-### 7.2 Probar auto-deploy
+### 7.2 Configurar UptimeRobot
 
-```bash
-# Hacer un cambio menor
-cd tipster-ia-bot
-echo "# Deploy test" >> README.md
-git add README.md
-git commit -m "test: auto-deploy"
-git push origin main
-```
+1. Ve a https://uptimerobot.com/
+2. Click en **"Sign Up"** (plan gratuito)
+3. Crea cuenta con email o Google
+4. Una vez dentro, click en **"Add New Monitor"**
 
-3. Ve a Render, deberías ver un nuevo deployment iniciado automáticamente
+### 7.3 Configurar monitor
+
+**Monitor Type:** HTTP(s)
+
+**Configuración:**
+- **Monitor Name:** `Tipster IA Bot`
+- **URL (or IP):** `https://tu-app.onrender.com/health`
+  - Reemplaza `tu-app` con el nombre de tu app en Render
+  - Ejemplo: `https://tipster-ia-bot.onrender.com/health`
+- **Monitoring Interval:** `5 minutes`
+- **Monitor Timeout:** `30 seconds`
+
+**Notification Settings:**
+- **Send notification when monitor goes down:** ✅ Activado
+- **Send notification when monitor comes back up:** ✅ Activado
+- **Notification Email:** tu-email@ejemplo.com
+
+**Advanced Settings:**
+- **HTTP Method:** GET
+- **Keyword Type:** Does not contain
+- **Keyword:** (dejar vacío)
+
+5. Click en **"Create Monitor"**
+
+### 7.4 Verificar funcionamiento
+
+1. Espera 5-10 minutos
+2. UptimeRobot hará el primer ping
+3. Verifica en Render → Logs que hay actividad
+4. El bot ahora estará despierto 24/7
+
+### 7.5 Límites del plan Free de UptimeRobot
+
+- ✅ 50 monitores gratuitos
+- ✅ Intervalo mínimo: 5 minutos
+- ✅ Notificaciones por email
+- ✅ Dashboard web
+- ⚠️ Solo 1 monitor necesario para este bot
 
 ---
 
@@ -317,7 +352,7 @@ Marca cada item cuando lo completes:
 - [ ] Cuenta en Render creada
 - [ ] Repositorio conectado a Render
 - [ ] Variables de entorno configuradas
-- [ ] Disco persistente configurado (1GB)
+- [ ] Disco persistente configurado (1GB) - OPCIONAL
 
 ### APIs Externas
 - [ ] Telegram Bot Token obtenido
@@ -331,26 +366,33 @@ Marca cada item cuando lo completes:
 - [ ] Upstash Redis configurado
 
 ### Deployment
-- [ ] Servicio creado en Render
+- [ ] Servicio creado en Render (plan Free)
 - [ ] Build command configurado
 - [ ] Start command configurado
 - [ ] Variables de entorno añadidas
-- [ ] Disco persistente montado
+- [ ] Disco persistente montado (opcional)
 - [ ] Deployment iniciado
 - [ ] Logs verificados (sin errores)
 - [ ] Bot responde en Telegram
 - [ ] Comando /analisis funciona
-- [ ] Auto-deploy activado
+- [ ] UptimeRobot configurado
 
 ### Post-Deploy
-- [ ] Monitoreo configurado (logs activos)
-- [ ] Alertas configuradas (opcional)
+- [ ] UptimeRobot funcionando (bot despierto 24/7)
+- [ ] Monitoreo activo
+- [ ] Primer análisis de prueba exitoso
 - [ ] Documentación actualizada con URL de producción
-- [ ] Equipo notificado del lanzamiento
 
 ---
 
-## 🐛 TROUBLESHOOTING COMÚN
+## 🐛 TROUBLESHOOTING COMÚN (PLAN FREE)
+
+### Bot se duerme y tarda en responder
+
+**Solución:**
+1. Configura UptimeRobot para hacer ping cada 5 minutos
+2. URL a monitorear: `https://tu-app.onrender.com/health`
+3. Esto mantendrá el bot despierto 24/7
 
 ### Error: "Module not found"
 
@@ -372,123 +414,171 @@ pip install -r requirements.txt
 
 **Solución:**
 1. Verifica tu API key en https://console.anthropic.com/
-2. Asegúrate de que tienes saldo disponible
+2. Asegúrate de que tienes saldo disponible (mínimo $5)
 3. Verifica que la key empieza por `sk-ant-api03-`
 
-### Bot no responde en Telegram
+### Bot no responde en Telegram (plan Free)
 
 **Solución:**
 1. Verifica logs en Render
-2. Asegúrate de que el bot tiene permisos en el grupo VIP
-3. Verifica que el token es correcto
-4. Prueba con `/start` en chat privado primero
+2. El bot puede estar "dormido" - espera 30-60 segundos
+3. Asegúrate de que el bot tiene permisos en el grupo VIP
+4. Verifica que el token es correcto
+5. Prueba con `/start` en chat privado primero
 
 ### Error: "Database is locked"
 
 **Solución:**
 1. Verifica que el disco persistente está montado en `/opt/render/project/src/data`
 2. Reinicia el servicio en Render
+3. En plan Free, esto es normal después de que el bot se "despierte"
 
 ### Alto consumo de memoria
 
 **Solución:**
 1. Activa cache de Redis (verifica variables UPSTASH_*)
 2. Reduce `MAX_ANALYSIS_PER_DAY` a 50
-3. Considera upgrade a plan Starter
+3. En plan Free, Render limita memoria a 512MB
 
 ---
 
-## 📊 MONITOREO POST-DEPLOY
+## 📊 MONITOREO POST-DEPLOY (PLAN FREE)
 
 ### Métricas a monitorear diariamente:
 
 ```bash
 # En Render → Logs, verificar:
 ✅ Sin errores críticos
-✅ Tiempo de respuesta < 30 segundos
-✅ Uso de API Claude < 80% del presupuesto
-✅ Cache hit rate > 70%
-✅ Sin caídas del servicio
+✅ Tiempo de respuesta 30-60 segundos (primera request después de dormir)
+✅ Uso de API Claude < 80% del presupuesto diario
+✅ Cache hit rate > 70% (para reducir costes)
+✅ Bot se despierta correctamente después de inactividad
 ```
 
-### Alertas recomendadas:
+### Alertas recomendadas (GRATIS):
 
+**UptimeRobot (Recomendado)**
+1. Ve a https://uptimerobot.com/
+2. Crea cuenta gratuita
+3. Añade monitor HTTP(s):
+   - URL: `https://tu-app.onrender.com/health`
+   - Intervalo: 5 minutos
+   - Notificación: Email o Telegram
+4. Esto te alertará si el bot se cae
+
+**Render Alerts (Opcional)**
 Configura en Render → Settings → Alerts:
-- **Service Down:** Si no hay logs por >5 minutos
+- **Service Down:** Si no hay logs por >15 minutos
 - **High Memory:** Si memoria > 90%
-- **High CPU:** Si CPU > 80%
 
 ---
 
-## 🎯 PRÓXIMOS PASOS DESPUÉS DEL DEPLOY
+## 🎯 PRÓXIMOS PASOS DESPUÉS DEL DEPLOY (SIN INVERSIÓN)
 
 1. **Probar en producción** (1 hora)
-   - [ ] Probar todos los comandos
-   - [ ] Verificar pagos con Stripe (modo test primero)
+   - [ ] Probar todos los comandos en Telegram
+   - [ ] Verificar pagos con Stripe (modo TEST primero)
    - [ ] Probar acceso VIP
+   - [ ] Configurar UptimeRobot para mantener bot despierto
 
 2. **Configurar canal de captura** (2 horas)
    - Crear canal Telegram público
    - Configurar bot como admin
    - Crear contenido de bienvenida
+   - Diseñar lead magnet (ej: "5 errores que te hacen perder en apuestas")
 
 3. **Preparar lanzamiento** (1 día)
-   - Crear 10 videos TikTok/Reels
+   - Crear 10 videos TikTok/Reels con el móvil
+   - Editar videos con CapCut (gratis)
    - Programar posts en redes
-   - Configurar analytics
+   - Configurar analytics gratuitos (Google Analytics)
 
-4. **Lanzar!** (Fin de semana)
-   - Publicar primer video
-   - Invitar primeros usuarios
-   - Monitorear métricas
+4. **Lanzar este fin de semana** (SIN INVERSIÓN)
+   - Publicar primer video en TikTok/Instagram/YouTube Shorts
+   - Compartir en grupos de fútbol y apuestas
+   - Invitar primeros usuarios al canal de Telegram
+   - Monitorear métricas y ajustar estrategia
 
----
-
-## 💡 CONSEJOS FINALES
-
-1. **Plan Free vs Starter:**
-   - Free: Para testing, se duerme después de 15 min
-   - Starter ($7/mes): Para producción 24/7
-
-2. **Modo Test vs Live en Stripe:**
-   - Primero prueba en modo TEST
-   - Cuando todo funcione, cambia a LIVE
-
-3. **Backups:**
-   - Render hace backups automáticos
-   - Exporta base de datos semanalmente
-
-4. **Escalado:**
-   - Empieza con plan Free/Starter
-   - Escala a Standard ($25/mes) cuando tengas >100 usuarios/día
+5. **Cuando factures €500+** (Mes 1-2)
+   - Upgrade a plan Starter ($7/mes) para 24/7
+   - Invertir en publicidad pagada
+   - Contratar editor de videos
 
 ---
 
-## 🆘 SOPORTE
+## 💡 CONSEJOS FINALES - PLAN GRATUITO
 
-Si tienes problemas:
+### Cómo funciona el plan Free:
 
-1. **Render Docs:** https://render.com/docs
-2. **Render Status:** https://status.render.com
-3. **Render Community:** https://community.render.com
+✅ **Ventajas:**
+- $0 costo, sin inversión inicial
+- Suficiente para testing y primeros usuarios
+- Deploy automático desde Git
+- SSL incluido
+- 750 horas/mes (suficiente para 1 instancia 24/7 con UptimeRobot)
+
+⚠️ **Limitaciones:**
+- Se duerme después de 15 minutos de inactividad
+- Primer request tarda 30-60 segundos en despertar
+- No ideal para producción con muchos usuarios
+- Memoria limitada a 512MB
+
+### Estrategia para plan Free:
+
+1. **Mantener el bot despierto:**
+   - Usar UptimeRobot (gratis) para ping cada 5 minutos
+   - URL: `https://tu-app.onrender.com/health`
+
+2. **Optimizar para plan Free:**
+   - Cache agresivo (12-24 horas) para reducir llamadas a Claude API
+   - Limitar análisis a 50/día en desarrollo
+   - Monitorear costes de API externas (Anthropic, API-Football)
+
+3. **Cuándo upgrade a Starter ($7/mes):**
+   - Cuando tengas >10 usuarios activos/día
+   - Cuando el tiempo de respuesta de 30-60s sea problema
+   - Cuando quieras 24/7 sin interrupciones
+   - Cuando factures >€500/mes (el bot se paga solo)
+
+### Modo Test vs Live en Stripe:
+
+- Primero prueba en modo TEST (sin dinero real)
+- Cuando todo funcione, cambia a LIVE
+- En plan Free, puedes procesar pagos sin problemas
 
 ---
 
 ## 🎉 FELICITACIONES!
 
 Una vez completados todos los pasos, tu bot estará:
-- ✅ Desplegado en producción 24/7
-- ✅ Funcionando en Telegram
+- ✅ Desplegado en Render.com (plan Free - SIN INVERSIÓN)
+- ✅ Funcionando en Telegram 24/7 (con UptimeRobot)
 - ✅ Procesando pagos con Stripe
 - ✅ Cacheando análisis para reducir costes
-- ✅ Listo para captar clientes
+- ✅ Listo para captar clientes SIN GASTAR DINERO
 
 **Tu bot ya está generando valor. Ahora a vender!** 🚀
 
 ---
 
+### 💰 Costo Real del Plan Free:
+
+- **Hosting:** $0/mes (Render Free tier)
+- **Cache:** $0/mes (Upstash Free tier: 10,000 comandos/día)
+- **Monitoreo:** $0 (UptimeRobot Free tier)
+- **Dominio:** $0 (usar URL de Render)
+- **Total:** **$0/mes** 🎉
+
+### 📈 Cuándo invertir:
+
+- **Mes 1-2:** Mantener plan Free, facturar €500+
+- **Mes 3:** Upgrade a Starter ($7/mes) cuando tengas 20+ VIPs
+- **Mes 4:** Invertir en publicidad con los beneficios del bot
+
+---
+
 **Tiempo total estimado:** 30-45 minutos  
 **Dificultad:** Media  
-**Costo inicial:** $0 (plan Free) o $7/mes (plan Starter)
+**Costo inicial:** $0 (plan Free - SIN INVERSIÓN)
 
 **Siguiente paso:** Crear contenido para lanzamiento (ver `docs/marketing/content_strategy.md`)
