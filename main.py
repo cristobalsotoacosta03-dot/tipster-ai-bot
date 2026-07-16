@@ -3,6 +3,7 @@ Main entry point for Tipster IA Bot.
 Initializes and starts the Telegram bot service.
 """
 import asyncio
+import os
 import signal
 import sys
 from pathlib import Path
@@ -30,6 +31,7 @@ class TipsterIABot:
         self.database = None
         self.access_control = None
         self.running = False
+        self._stop_event: asyncio.Event | None = None
         
         logger.info("=" * 60)
         logger.info("🤖 TIPSTER IA BOT - Inicializando sistema")
@@ -86,14 +88,30 @@ class TipsterIABot:
             logger.info("🚀 Iniciando bot...")
             
             # Setup graceful shutdown
+            self._stop_event = asyncio.Event()
             self._setup_signal_handlers()
-            
-            # Start bot (blocking)
-            self.bot.run()
-            
-        except KeyboardInterrupt:
-            logger.info("⚠️  Interrupción de teclado detectada")
+
+            # Render's free plan only exists for Web Services, which must
+            # listen on $PORT and respond over HTTP. Render also sets
+            # RENDER_EXTERNAL_URL automatically, so we use it to switch to
+            # webhook mode there; locally (no PORT set) we fall back to
+            # polling.
+            port = os.environ.get("PORT")
+            external_url = os.environ.get("RENDER_EXTERNAL_URL")
+            if port and external_url:
+                await self.bot.start_webhook(
+                    listen="0.0.0.0",
+                    port=int(port),
+                    webhook_url=external_url,
+                    url_path=settings.telegram_bot_token,
+                )
+            else:
+                await self.bot.start_polling()
+
+            logger.info("✅ Bot en ejecución")
+            await self._stop_event.wait()
             await self.stop()
+
         except Exception as e:
             logger.error(f"❌ Error fatal: {e}", exc_info=True)
             await self.stop()
@@ -125,14 +143,19 @@ class TipsterIABot:
     def _setup_signal_handlers(self) -> None:
         """Setup signal handlers for graceful shutdown."""
         try:
-            # Only works on Unix systems
-            import signal
+            loop = asyncio.get_running_loop()
             for sig in (signal.SIGINT, signal.SIGTERM):
-                signal.signal(sig, self._signal_handler)
+                loop.add_signal_handler(sig, self._handle_stop_signal)
             logger.debug("Signal handlers configurados")
-        except (ImportError, OSError):
-            # Windows doesn't support signal handlers the same way
+        except (NotImplementedError, RuntimeError):
+            # Windows' default event loop doesn't support add_signal_handler
             logger.debug("Signal handlers no disponibles en este sistema")
+
+    def _handle_stop_signal(self) -> None:
+        """Triggered when SIGINT/SIGTERM is received."""
+        logger.info("⚠️  Señal de apagado recibida")
+        if self._stop_event:
+            self._stop_event.set()
 
 
 def main():

@@ -46,8 +46,10 @@ git push origin main
 
 ### 3.1 Iniciar deployment
 
+> ⚠️ **Render ya no ofrece plan Free para "Background Worker"** (el mínimo es Starter, $7/mes). Para desplegar gratis hay que usar **"Web Service"**: el bot corre en modo *webhook* (Telegram le hace POST directamente) en vez de *polling*, así el proceso escucha en un puerto HTTP y califica para el plan Free. Esto ya está implementado en el código (`main.py` detecta las variables `PORT`/`RENDER_EXTERNAL_URL` que Render inyecta automáticamente y cambia a modo webhook solo).
+
 1. En el dashboard de Render, click en **"New +"** (esquina superior derecha)
-2. Selecciona **"Background Worker"**
+2. Selecciona **"Web Service"**
 3. Click en **"Connect a repository"**
 4. Selecciona tu repositorio `tipster-ia-bot`
 5. Click en **"Connect"**
@@ -65,10 +67,9 @@ git push origin main
 | **Plan** | `Free` (SIN INVERSIÓN - recomendado para empezar) |
 
 **IMPORTANTE - PLAN GRATUITO:**
-- ✅ Un **Background Worker** (a diferencia de un Web Service) NO se duerme por inactividad HTTP — no tiene URL pública ni recibe tráfico web, así que ese mecanismo de "sleep" no aplica.
-- ✅ Corre de forma continua mientras tengas horas disponibles.
-- ⚠️ El plan Free incluye 750 horas/mes compartidas entre todos tus servicios free de la cuenta. Un worker corriendo 24/7 consume prácticamente todo ese cupo (~744h/mes), así que no podrás tener otro servicio free corriendo en paralelo sin quedarte sin horas.
-- 💡 No necesitas UptimeRobot ni ningún truco de "mantener despierto" — eso solo aplica a Web Services.
+- ⚠️ Un **Web Service** free SÍ se duerme tras 15 minutos sin recibir tráfico HTTP. Como el bot ahora recibe los mensajes de Telegram vía webhook (una petición HTTP por cada mensaje), en la práctica se mantiene despierto mientras haya actividad — pero si nadie escribe durante 15+ minutos, el próximo mensaje tardará 30-60s en procesarse (arranque en frío).
+- 💡 Para evitar ese retraso, configura UptimeRobot en el **Paso 7** — ahora sí aplica, porque el servicio expone `GET /` y `GET /health` (200 OK) para que puedas hacerle ping.
+- ⚠️ El plan Free incluye 750 horas/mes compartidas entre todos tus servicios free de la cuenta.
 
 ### 3.3 Configurar variables de entorno
 
@@ -163,24 +164,20 @@ CURRENCY=EUR
    - REST URL: `https://xxx.upstash.io`
    - REST Token: `tu-token`
 
-### 3.4 Configurar disco persistente (OPCIONAL en plan Free)
+### 3.4 Disco persistente (NO disponible en plan Free)
 
-1. Scroll down hasta **"Disk"**
-2. Click en **"Add Disk"**
-3. Configura:
-   - **Name:** `tipster-data`
-   - **Mount Path:** `/opt/render/project/src/data`
-   - **Size:** `1 GB`
-4. Click **"Save"**
+> ⚠️ Render solo permite adjuntar discos persistentes en instancias de pago (Starter o superior) — en el plan Free esta opción ni aparece. Esto significa que la base de datos SQLite (`data/tipster_bot.db`, con usuarios, estado VIP y pagos) **se borra en cada deploy y en cada reinicio del servicio**.
 
-**Nota:** 
-- En plan Free, el disco persiste pero el servicio se duerme
-- La base de datos SQLite se mantiene entre deployments
-- Para producción 24/7, considera upgrade a plan Starter ($7/mes)
+**Qué implica en la práctica:**
+- Si un usuario paga y se le marca como VIP, y luego el servicio se reinicia (deploy, caída, redeploy), pierde su estado VIP.
+- Para lanzar con usuarios de pago reales, necesitas: (a) subir a Starter ($7/mes) para tener disco, o (b) migrar `users`/`payments`/`subscriptions` a un almacén externo (Postgres gratis en Supabase/Neon, o el mismo Redis de Upstash que ya tienes configurado).
+- Para testing y validar el flujo con pocos usuarios, es tolerable dejarlo así por ahora — solo ten en cuenta que los datos no sobreviven a un redeploy.
 
 ---
 
 ## ⚡ PASO 4: Configurar Webhook de Stripe (5 minutos)
+
+> ⚠️ **Bloqueante:** `src/monetization/payment_handler.py` ya sabe procesar estos eventos (`handle_webhook()`), pero ninguna ruta HTTP del bot lo invoca todavía — `/webhook/stripe` no existe en el servidor. Si configuras el endpoint ahora, Stripe recibirá 404 en cada evento y **ningún pago activará el VIP automáticamente**. Además, `analisis_command` en `telegram_bot.py` tiene el chequeo de VIP hardcodeado a `False` (hay un `# TODO: Implement VIP check` en el código). Puedes seguir estos pasos para dejar la configuración lista en Stripe, pero el flujo de pago→VIP no funcionará de extremo a extremo hasta que se implemente esa ruta y el chequeo real de VIP.
 
 ### 4.1 Obtener URL de tu bot
 
@@ -210,7 +207,7 @@ https://tipster-ia-bot.onrender.com
 ### 5.1 Iniciar deployment
 
 1. En la página de configuración de Render, scroll hasta el final
-2. Click en **"Create Background Worker"**
+2. Click en **"Create Web Service"**
 3. Render comenzará el deployment automáticamente
 
 ### 5.2 Monitorear deployment
@@ -288,19 +285,41 @@ En los logs deberías ver:
 
 ---
 
-## ⚡ PASO 7: Monitoreo del bot (opcional)
+## ⚡ PASO 7: Configurar UptimeRobot para mantener el bot despierto (5 minutos)
 
-### 7.1 Por qué NO necesitas UptimeRobot
+### 7.1 Por qué hace falta
 
-Este bot se despliega como **Background Worker**, no como Web Service. Los Background Workers de Render no exponen una URL pública ni se duermen por inactividad HTTP (ese comportamiento de "sleep a los 15 minutos" es exclusivo de los Web Services). No hay nada que "despertar" y no hay endpoint `/health` al que hacer ping, así que puedes saltarte cualquier truco de keep-alive.
+Este bot se despliega como **Web Service** (es el único tipo con plan Free en Render). Un Web Service free se duerme tras 15 minutos sin tráfico HTTP entrante. El código expone `GET /` y `GET /health` (devuelven `200 OK`) específicamente para que un servicio externo pueda hacer ping y mantenerlo despierto — sin esto, cada mensaje después de 15+ min de inactividad tardaría 30-60s en la primera respuesta.
 
-Lo único a vigilar en el plan Free es el cupo de **750 horas/mes** compartidas por todos tus servicios free de la cuenta — un worker corriendo 24/7 ya consume casi todo ese cupo.
+### 7.2 Configurar UptimeRobot
 
-### 7.2 Cómo monitorear el bot sin UptimeRobot
+1. Ve a https://uptimerobot.com/
+2. Click en **"Sign Up"** (plan gratuito)
+3. Crea cuenta con email o Google
+4. Una vez dentro, click en **"Add New Monitor"**
 
-- **Logs de Render:** Dashboard → tu servicio → pestaña "Logs" para ver actividad en tiempo real.
-- **Alertas de Render:** Dashboard → Settings → Notifications, activa alertas por email si el servicio falla o se reinicia (esto sí lo ofrece Render nativamente, sin servicios externos).
-- **Prueba directa en Telegram:** la forma más simple de confirmar que sigue vivo es enviarle un comando y ver si responde.
+### 7.3 Configurar monitor
+
+**Monitor Type:** HTTP(s)
+
+**Configuración:**
+- **Monitor Name:** `Tipster IA Bot`
+- **URL (or IP):** `https://tu-app.onrender.com/health`
+  - Reemplaza `tu-app` con el nombre real de tu servicio en Render
+- **Monitoring Interval:** `5 minutes`
+- **Monitor Timeout:** `30 seconds`
+
+5. Click en **"Create Monitor"**
+
+### 7.4 Verificar funcionamiento
+
+1. Espera 5-10 minutos
+2. Verifica en Render → Logs que hay peticiones GET periódicas a `/health`
+3. Prueba escribiéndole al bot después de un rato de inactividad — debería responder al instante
+
+### 7.5 Alternativa nativa de Render (sin servicios externos)
+
+Si prefieres no depender de UptimeRobot: Dashboard → Settings → Notifications, activa alertas por email si el servicio falla o se reinicia. Esto no evita que se duerma, pero te avisa si se cae de verdad.
 
 ---
 
@@ -381,8 +400,8 @@ pip install -r requirements.txt
 ### Error: "Database is locked"
 
 **Solución:**
-1. Verifica que el disco persistente está montado en `/opt/render/project/src/data`
-2. Reinicia el servicio en Render
+1. Reinicia el servicio en Render
+2. Recuerda: en plan Free no hay disco persistente, así que la base de datos se recrea vacía en cada reinicio (ver nota en Paso 3.4)
 
 ### Alto consumo de memoria
 
@@ -402,7 +421,7 @@ pip install -r requirements.txt
 ✅ Sin errores críticos
 ✅ Uso de API Claude < 80% del presupuesto diario
 ✅ Cache hit rate > 70% (para reducir costes)
-✅ Horas de worker dentro del cupo mensual (750h/mes en plan Free)
+✅ Horas del servicio dentro del cupo mensual (750h/mes en plan Free)
 ```
 
 ### Alertas recomendadas (GRATIS):
@@ -454,18 +473,18 @@ Configura en Render → Settings → Notifications:
 - $0 costo, sin inversión inicial
 - Suficiente para testing y primeros usuarios
 - Deploy automático desde Git
-- Como Background Worker, corre 24/7 sin dormirse por inactividad
 
 ⚠️ **Limitaciones:**
-- 750 horas/mes compartidas entre todos tus servicios free — un worker 24/7 casi las agota por sí solo
+- Se duerme tras 15 minutos de inactividad (mitigado con UptimeRobot, Paso 7)
+- Sin disco persistente — la base de datos SQLite no sobrevive a un redeploy (ver Paso 3.4)
+- 750 horas/mes compartidas entre todos tus servicios free de la cuenta
 - No ideal para producción con muchos usuarios
 - Memoria limitada a 512MB
 
 ### Estrategia para plan Free:
 
-1. **Vigilar el cupo de horas:**
-   - Como Background Worker, el bot no se duerme, pero consume del cupo de 750h/mes del plan Free casi por completo si corre 24/7
-   - Si añades otro servicio free a la misma cuenta, competirán por esas horas
+1. **Mantener el bot despierto:**
+   - Configura UptimeRobot (Paso 7) para que haga ping a `/health` cada 5 minutos
 
 2. **Optimizar para plan Free:**
    - Cache agresivo (12-24 horas) para reducir llamadas a Claude API
@@ -490,8 +509,8 @@ Configura en Render → Settings → Notifications:
 
 Una vez completados todos los pasos, tu bot estará:
 - ✅ Desplegado en Render.com (plan Free - SIN INVERSIÓN)
-- ✅ Funcionando en Telegram 24/7 (Background Worker, sin necesidad de keep-alive)
-- ✅ Procesando pagos con Stripe
+- ✅ Funcionando en Telegram (modo webhook + UptimeRobot para evitar el sleep)
+- ⚠️ El cobro con Stripe funciona, pero activar el VIP tras el pago aún requiere implementar la ruta `/webhook/stripe` (ver aviso en Paso 4)
 - ✅ Cacheando análisis para reducir costes
 - ✅ Listo para captar clientes SIN GASTAR DINERO
 
@@ -503,8 +522,8 @@ Una vez completados todos los pasos, tu bot estará:
 
 - **Hosting:** $0/mes (Render Free tier)
 - **Cache:** $0/mes (Upstash Free tier: 10,000 comandos/día)
-- **Monitoreo:** $0 (alertas nativas de Render, sin servicios externos)
-- **Dominio:** $0 (no aplica — un Background Worker no tiene URL pública)
+- **Monitoreo:** $0 (UptimeRobot free tier)
+- **Dominio:** $0 (usar la URL `.onrender.com` que da Render)
 - **Total:** **$0/mes** 🎉
 
 ### 📈 Cuándo invertir:

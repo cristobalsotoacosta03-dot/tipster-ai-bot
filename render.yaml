@@ -3,7 +3,12 @@
 
 services:
   # Main Bot Service
-  - type: worker
+  # NOTE: Render's free plan is only available for "web" services, not
+  # "worker" services (background workers require a paid plan). This bot
+  # runs as a Web Service in webhook mode (see main.py) purely to qualify
+  # for the free tier: it binds to $PORT and Telegram delivers updates via
+  # HTTP POST instead of long polling.
+  - type: web
     name: tipster-ia-bot
     runtime: python
     plan: free  # Upgrade to starter ($7/month) for production
@@ -67,12 +72,15 @@ services:
 
     # Scaling
     numInstances: 1
-    
-    # Disk space for database
-    disk:
-      name: tipster-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+
+    # NOTE: Persistent disks require a paid instance type — the free plan
+    # cannot mount one. Without it, the SQLite database at data/tipster_bot.db
+    # (users, VIP status, payment history) resets on every deploy and every
+    # restart. That's a real risk for a paid product: a customer's VIP status
+    # could vanish. Either upgrade to Starter to attach a disk, or migrate
+    # this data to an external store (e.g. the Upstash Redis already
+    # configured below, or a free Postgres like Supabase/Neon) before
+    # onboarding paying users.
 
 # Optional: Redis Service (if not using Upstash)
 # Uncomment if you want to use Render's Redis

@@ -4,6 +4,7 @@ Handles bot initialization, command routing, and message processing.
 """
 import asyncio
 from typing import Optional, Dict, Any
+from aiohttp import web
 from telegram import Update, Bot
 from telegram.ext import (
     Application,
@@ -44,7 +45,11 @@ class TelegramBot:
         
         # Register handlers
         self._register_handlers()
-        
+
+        # Set when running in webhook mode; used by stop() to know how
+        # to shut down cleanly.
+        self._webhook_runner: Optional[web.AppRunner] = None
+
         logger.info("Telegram bot initialized with Match Analyzer")
     
     def _register_handlers(self) -> None:
@@ -427,21 +432,54 @@ Contacta con @TuSoporte o usa el botón de pago (próximamente).
         logger.info(f"Broadcast completed: {results['success']} success, {results['failed']} failed")
         return results
     
-    def run(self) -> None:
+    async def start_polling(self) -> None:
         """
-        Start the bot (blocking call).
+        Start the bot in long-polling mode (non-blocking: returns once
+        polling has started, the Application keeps running in the
+        background event loop). Used for local development.
         """
-        logger.info("Starting Telegram bot...")
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
-    
-    async def start_async(self) -> None:
-        """
-        Start the bot (async call).
-        """
-        logger.info("Starting Telegram bot (async)...")
+        logger.info("Starting Telegram bot (polling)...")
         await self.application.initialize()
         await self.application.start()
         await self.application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+
+    async def start_webhook(self, listen: str, port: int, webhook_url: str, url_path: str) -> None:
+        """
+        Start the bot in webhook mode (non-blocking) using a small aiohttp
+        server instead of PTB's built-in webhook server, so we control the
+        routes directly: POST /<url_path> receives Telegram updates and
+        GET /, /health answer Render's health checks. Used in production,
+        since Render's free plan only exists for Web Services, which must
+        bind to $PORT and respond over HTTP.
+        """
+        logger.info(f"Starting Telegram bot (webhook) on {listen}:{port}...")
+        await self.application.initialize()
+        await self.application.start()
+        await self.application.bot.set_webhook(
+            url=f"{webhook_url}/{url_path}",
+            allowed_updates=Update.ALL_TYPES,
+        )
+
+        async def handle_webhook(request: web.Request) -> web.Response:
+            data = await request.json()
+            update = Update.de_json(data, self.application.bot)
+            await self.application.update_queue.put(update)
+            return web.Response(status=200)
+
+        async def handle_health(request: web.Request) -> web.Response:
+            return web.Response(status=200, text="OK")
+
+        app = web.Application()
+        app.router.add_post(f"/{url_path}", handle_webhook)
+        app.router.add_get("/", handle_health)
+        app.router.add_get("/health", handle_health)
+
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, listen, port)
+        await site.start()
+        self._webhook_runner = runner
+        logger.info(f"Webhook server listening on {listen}:{port}")
     
     async def stop(self) -> None:
         """
@@ -454,8 +492,13 @@ Contacta con @TuSoporte o usa el botón de pago (próximamente).
                 await self.match_analyzer.stats_fetcher.close()
         except Exception as e:
             logger.error(f"Error closing components: {e}")
-        
-        await self.application.updater.stop()
+
+        if self._webhook_runner is not None:
+            await self.application.bot.delete_webhook()
+            await self._webhook_runner.cleanup()
+        elif self.application.updater is not None and self.application.updater.running:
+            await self.application.updater.stop()
+
         await self.application.stop()
         await self.application.shutdown()
     
