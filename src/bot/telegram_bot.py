@@ -701,7 +701,14 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
             logger.error(f"Error closing components: {e}")
 
         if self._webhook_runner is not None:
-            await self.application.bot.delete_webhook()
+            # Don't call delete_webhook() here: during a Render rolling
+            # deploy, the new instance is already live and has registered
+            # its own webhook (via set_webhook() in start_webhook()) before
+            # this old instance receives SIGTERM. Deleting the webhook at
+            # that point wipes out the new instance's registration too,
+            # leaving the live instance with no webhook until someone
+            # re-sets it by hand. Each instance re-registers on startup
+            # anyway, so there's nothing to clean up here.
             await self._webhook_runner.cleanup()
         elif self.application.updater is not None and self.application.updater.running:
             await self.application.updater.stop()
