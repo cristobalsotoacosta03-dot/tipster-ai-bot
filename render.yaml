@@ -55,7 +55,23 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
-      
+
+      # Database (optional — fixes the persistent-disk problem below).
+      # Leave unset and the bot keeps using its current SQLite file (wiped on
+      # every redeploy). To make storage persistent for free:
+      #   1. Create a free Postgres project at supabase.com or neon.tech
+      #      (no card required).
+      #   2. Copy its connection string (starts with postgres:// or
+      #      postgresql://).
+      #   3. Set it here in the Render dashboard (this "sync: false" means
+      #      Render won't accept the value from this file — set it manually
+      #      under this service's Environment tab) as DATABASE_URL.
+      #   4. Redeploy. DatabaseManager (src/data/database.py) detects it
+      #      automatically and switches from SQLite to Postgres — same
+      #      schema, same code, nothing else to change.
+      - key: DATABASE_URL
+        sync: false
+
       # Application
       - key: ENVIRONMENT
         value: production
@@ -86,10 +102,8 @@ services:
     # cannot mount one. Without it, the SQLite database at data/tipster_bot.db
     # (users, VIP status, payment history) resets on every deploy and every
     # restart. That's a real risk for a paid product: a customer's VIP status
-    # could vanish. Either upgrade to Starter to attach a disk, or migrate
-    # this data to an external store (e.g. the Upstash Redis already
-    # configured below, or a free Postgres like Supabase/Neon) before
-    # onboarding paying users.
+    # could vanish. Fix: set DATABASE_URL above to a free Postgres project
+    # (Supabase/Neon) — see the comment on that env var for the exact steps.
 
 # Optional: Redis Service (if not using Upstash)
 # Uncomment if you want to use Render's Redis

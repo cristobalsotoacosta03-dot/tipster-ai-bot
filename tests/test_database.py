@@ -1,6 +1,7 @@
 """
 Tests for Database Manager.
 """
+from unittest.mock import MagicMock, patch
 import pytest
 import os
 from src.data.database import DatabaseManager
@@ -107,7 +108,7 @@ class TestDatabaseManager:
         # Get analyses
         analyses = db_manager.get_user_analyses(user_id, limit=10)
         assert len(analyses) == 5
-        assert analyses[0]["analysis"] == "Analysis 4"  # Most recent first
+        assert analyses[0]["analysis_text"] == "Analysis 4"  # Most recent first
     
     def test_save_payment(self, db_manager):
         """Test saving payment."""
@@ -161,3 +162,58 @@ class TestDatabaseManager:
         """Test daily stats update."""
         result = db_manager.update_daily_stats()
         assert result is True
+
+
+class TestDatabaseManagerPostgresSelection:
+    """
+    DATABASE_URL is meant to switch the driver from SQLite to Postgres
+    without touching production (nobody has set it yet, and there's no free
+    Postgres instance available to test against here). These tests only
+    verify the driver-selection wiring — the '?' -> '%s' query translation,
+    which class attribute gets used, and the RETURNING-id insert path — with
+    psycopg2 mocked out. They do not, and cannot, prove the SQL is valid
+    against a real Postgres server.
+    """
+
+    @pytest.fixture
+    def pg_manager(self, tmp_path):
+        with patch("src.data.database.settings") as mock_settings, \
+             patch("src.data.database.psycopg2") as mock_psycopg2:
+            mock_settings.database_url = "postgresql://user:pass@host/db"
+
+            mock_conn = MagicMock()
+            mock_cursor = MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_cursor.fetchone.return_value = {"id": 42, "count": 0, "total": 0.0}
+            mock_cursor.fetchall.return_value = []
+            mock_psycopg2.connect.return_value = mock_conn
+            mock_psycopg2.extras.RealDictCursor = MagicMock()
+
+            manager = DatabaseManager(str(tmp_path / "unused.db"))
+            manager._mock_conn = mock_conn
+            manager._mock_cursor = mock_cursor
+            yield manager
+
+    def test_uses_postgres_when_database_url_is_set(self, pg_manager):
+        assert pg_manager.use_postgres is True
+
+    def test_query_placeholders_are_translated_for_postgres(self, pg_manager):
+        assert pg_manager._q("SELECT * FROM users WHERE user_id = ?") == \
+            "SELECT * FROM users WHERE user_id = %s"
+
+    def test_sqlite_queries_are_left_untouched(self, tmp_path):
+        sqlite_manager = DatabaseManager(str(tmp_path / "sqlite.db"))
+        assert sqlite_manager.use_postgres is False
+        assert sqlite_manager._q("SELECT * FROM users WHERE user_id = ?") == \
+            "SELECT * FROM users WHERE user_id = ?"
+
+    def test_save_analysis_uses_returning_id_on_postgres(self, pg_manager):
+        analysis_id = pg_manager.save_analysis({
+            "user_id": 1, "match_id": "a_vs_b", "home_team": "A", "away_team": "B",
+            "analysis_type": "full", "analysis": "text",
+        })
+
+        assert analysis_id == 42
+        executed_sql = pg_manager._mock_cursor.execute.call_args[0][0]
+        assert "RETURNING id" in executed_sql
+        assert "%s" in executed_sql

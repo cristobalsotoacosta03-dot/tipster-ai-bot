@@ -67,6 +67,18 @@ class Settings(BaseSettings):
     # ===========================================
     upstash_redis_rest_url: Optional[str] = None
     upstash_redis_rest_token: Optional[str] = None
+
+    # ===========================================
+    # DATABASE (optional Postgres)
+    # ===========================================
+    # Optional on purpose: when unset, DatabaseManager keeps using its
+    # existing SQLite file (data/tipster_bot.db) exactly as before. Render's
+    # Free plan has no persistent disk, so that SQLite file is wiped on every
+    # redeploy/restart — losing users, VIP status, and payment history. To
+    # fix this for real, create a free Postgres project (Supabase or Neon,
+    # no card required) and set this to its connection string in Render's
+    # dashboard env vars. See MANUAL_OPERATIVO.md for the exact steps.
+    database_url: Optional[str] = None
     
     # ===========================================
     # APPLICATION SETTINGS
