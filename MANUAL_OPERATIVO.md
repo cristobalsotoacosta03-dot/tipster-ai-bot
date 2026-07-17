@@ -97,6 +97,61 @@ Estado exacto a fecha de hoy:
 
 **Próximo paso literal**: confirmar `api_hash` por texto → usuario ejecuta `scripts/telegram_consensus_login.py` (en el portátil o donde esté) → pega la sesión resultante en `.env` → dar la lista de canales de tipsters de confianza → diseñar la lógica de detección de consenso (heurística por palabras clave, no NLP completo).
 
+### Sesión 17/07/2026 (continuación 4) — 5h autónomas sin supervisión: hardening + Postgres + marketing
+
+El usuario pidió una sesión larga (~5h) completamente autónoma ("mejora el proyecto x10, sin que yo intervenga") con reglas ya acordadas: push directo a `main` permitido, consenso de tipsters en pausa (bloqueado por login manual del usuario), mezcla equilibrada entre código/calidad y contenido, y ante cualquier bloqueo de negocio tomar la opción más razonable, documentarla y seguir. Repo clonado localmente en `C:\Users\Cristóbal Soto\Claude\Projects\tipster-ai-bot`. Todo lo de esta sección está ya en `main` (commits `f98e855`..`7d577a1`), no en una rama aparte.
+
+**Entorno local usado**: no había Python 3.11 instalado (solo 3.14, que rompe `pydantic-core` — el mismo problema que `render.yaml` ya evita en producción). Se instaló Python 3.11.9 vía `winget install Python.Python.3.11` y se creó un venv en `.venv/` dentro del repo (no versionado). Tampoco había `.env` local — no se ha usado ni se ha tenido acceso a ningún secreto real en toda la sesión.
+
+**1. Red de seguridad (`f98e855`)**
+- GitHub Actions nuevo (`.github/workflows/test.yml`): corre `pytest -q` en cada push, Python 3.11.9.
+- `tests/conftest.py` nuevo: define env vars dummy para los campos requeridos de `Settings` (nunca secretos reales) — sin esto, ni CI ni `pytest` local podían siquiera arrancar la colección de tests.
+- **Nota sobre el historial de commits**: los 4 commits siguientes (`f98e855` a `47fa5aa`) aparecen en rojo en GitHub Actions. No es un bug real: el fix del test `test_get_user_analyses` se hizo en el árbol de trabajo local antes del primer commit, pero no se incluyó en un commit hasta más tarde (`f1b463f`) — así que, evaluados de forma aislada, esos 4 commits sí contenían el bug real. A partir de `f1b463f` (incluido) CI está en verde. No hace falta reescribir el historial por esto, pero si te extraña ver esos ❌ ahora lo sabes.
+
+**2. Bug crítico en producción corregido (`6c61957`)**
+- El *system prompt* real que se manda a Claude en cada `/analisis` tenía caracteres chinos mezclados en español: `"transiciones,构建ción de juego"` en vez de `"transiciones, construcción de juego"` (`src/analyzer/claude_client.py`). Llevaba tiempo así sin que nadie lo notara porque no rompía nada, solo degradaba la calidad del análisis. Corregido, con test de regresión.
+- Bug adicional encontrado al revisar el archivo: `ClaudeClient` usaba el cliente **síncrono** `anthropic.Anthropic` dentro de funciones `async` (`analyze_match`, `health_check`) sin `await` — cada llamada a Claude bloqueaba el event loop **entero** del bot, congelando a todos los usuarios mientras se esperaba la respuesta. Cambiado a `anthropic.AsyncAnthropic` + `await`. Esto es importante para cuando haya varios usuarios VIP a la vez.
+- Decisión consciente de **no** cambiar el modelo (`claude-3-5-sonnet-20241022`) esta sesión: no quería mezclar una variable no validada (modelo nuevo) en una sesión sin supervisión. Si quieres probar un modelo más reciente, es un cambio de una línea en `claude_client.py`, pero pruébalo tú mismo con unos cuantos partidos antes de confiar en él para VIP.
+
+**3. Normalización de `match_id` + dependencias (`0787bed`)**
+- `_generate_match_id` (`src/analyzer/match_analyzer.py`) solo hacía `lower().strip()`, así que "Atlético" vs "Atletico" o "São Paulo" vs "Sao Paulo" generaban IDs de caché distintos — fallos de caché silenciosos con público hispanohablante. Ahora normaliza vía `unicodedata` (quita tildes/diacríticos y puntuación).
+- `anthropic` subido de `0.18.0` a `0.40.0` (verificado: la API usada — `AsyncAnthropic`, `messages.create`, `APIError`/`RateLimitError` — es estable en todo ese rango; smoke-test de import hecho localmente).
+
+**4. Cobertura de tests para el código de mayor riesgo (`47fa5aa`)**
+- `tests/test_claude_client.py` y `tests/test_telegram_bot.py` nuevos — antes tenían **cero** tests, y son el código que habla con dinero real (webhook de Stripe) y con usuarios reales (handlers de Telegram). No es cobertura exhaustiva; cubre el camino feliz y los casos que no deben crashear sin supervisión (ver los commits para el detalle).
+
+**5. Postgres opcional vía `DATABASE_URL` (`f1b463f`) — el ítem #1 de la lista de "crítico antes de clientes reales"**
+- `src/data/database.py` reescrito con una capa dual: sin `DATABASE_URL`, comportamiento idéntico a hoy (SQLite, mismo archivo, mismos tests). Con `DATABASE_URL` (connection string de Postgres), la misma clase usa Postgres automáticamente — mismo código, DDL equivalente, traducción de placeholders.
+- **Nada de esto está activo en producción todavía.** Sigue en SQLite, sigue perdiendo datos en cada redeploy de Render, exactamente como antes.
+- **Pendiente que solo puedes hacer tú** (requiere una cuenta que el agente no puede crear de forma autónoma): crear un proyecto gratuito en [supabase.com](https://supabase.com) o [neon.tech](https://neon.tech) (sin tarjeta), copiar su connection string, y pegarla como `DATABASE_URL` en el dashboard de Render (Environment del servicio `tipster-ia-bot`) → redeploy. Instrucciones exactas también en `render.yaml` junto a esa variable.
+- De paso, arreglado el test que ya fallaba antes de esta sesión (`test_get_user_analyses`): tenía dos bugs reales, no uno — la clave de test decía `"analysis"` en vez de `"analysis_text"` (columna real de la BD), **y** `get_user_analyses` ordenaba por `created_at` con precisión de segundo, así que varios análisis guardados en el mismo segundo salían en orden arbitrario. Ahora ordena por `id`.
+
+**6. Contenido de marketing (`7d577a1`)**
+- `docs/marketing/channel_welcome_message.md`, `content_pieces_batch1.md`, `vip_sales_copy.md` — borradores listos para tu revisión, ninguno publicado.
+- **Importante — revisar antes de publicar cualquier cosa de `content_strategy.md`**: ese documento (de una sesión anterior) tiene ejemplos de guiones y de pitch de venta con una cifra de "68% de acierto" y testimonios firmados con nombres ficticios ("Carlos M., Madrid", etc.). El producto no tiene historial de aciertos real ni clientes reales todavía, así que publicar eso tal cual sería publicidad engañosa. Los 3 archivos nuevos de esta sesión evitan deliberadamente inventar cifras o testimonios — mejor construir credibilidad mostrando el proceso hasta que haya datos reales que mostrar.
+- `channel_welcome_message.md` también corrige un detalle de producto: el borrador anterior asumía un handle VIP estático al que unirse; el acceso VIP real es un enlace de invitación de un solo uso generado tras el pago.
+
+**Bloqueo que no se pudo resolver (sin credenciales, correctamente)**: no había forma de confirmar en real que el fix de API-Football (commit `eed1d0c`, sesión anterior) funciona en producción — eso requiere `ANTHROPIC_API_KEY` y `API_FOOTBALL_KEY` reales, que no están en este entorno ni deberían estarlo. **Esto es lo primero que deberías probar tú al volver**: escribe `/analisis Real Madrid vs Barcelona` al bot y confirma que responde con datos reales (no "No pude encontrar datos").
+
+**Qué NO se hizo esta sesión (recortado a propósito por tiempo, no por olvido)**:
+- Fuzzy matching de nombres de equipo en `/analisis` (typos) — el parseo sigue siendo `" vs "` literal.
+- Lead magnet (PDF/guía) — solo hay un outline previo en `content_strategy.md`, no se generó nada nuevo.
+- Consenso de tipsters — sigue exactamente donde lo dejaste, bloqueado por tu login de Telethon.
+- No se ha tocado ningún secreto, ningún pago real, ningún canal de Telegram real, ninguna campaña de publicidad.
+
+**Estado de tests al cierre**: `pytest -q` → **121 passed** (antes de esta sesión: 90 passed + 1 fallo preexistente conocido, verificado ahora corregido de raíz). Comando para reproducir: `pip install -r requirements.txt && pytest -q` (Python 3.11.9).
+
+**Rollback si algo se ve mal en Render tras estos pushes**: `git revert <sha>` del commit problemático + `git push` — Render redespliega el revert automáticamente vía `autoDeploy: true`. No usar `git reset --hard` sobre `main`.
+
+```
+f98e855 ci: añadir GitHub Actions (test en cada push) y conftest con env vars dummy
+6c61957 fix: prompt corrupto en producción + cliente Claude bloqueaba el event loop
+0787bed fix: normalizar match_id (tildes/puntuación) + bump anthropic SDK
+47fa5aa test: cobertura para claude_client.py y telegram_bot.py (antes cero)
+f1b463f feat: soporte opcional de Postgres en DatabaseManager vía DATABASE_URL
+7d577a1 docs: contenido de marketing listo — bienvenida, piezas, copy VIP
+```
+
 ### Reglas de negocio vigentes
 
 1. No invertir en publicidad hasta **10 clientes VIP de pago**.
@@ -161,19 +216,27 @@ Estado exacto a fecha de hoy:
 - [x] Bot admin del grupo VIP
 - [x] Canal gratis + grupo VIP creados
 - [x] Documentación reorganizada (17/07/2026)
+- [x] CI (GitHub Actions, test en cada push) — 17/07/2026
+- [x] Bug de prompt corrupto en producción + fix de event loop bloqueado — 17/07/2026
+- [x] Tests para claude_client.py y telegram_bot.py (antes cero) — 17/07/2026
+- [x] Código listo para BD Postgres vía `DATABASE_URL` (falta el paso manual de crear el proyecto) — 17/07/2026
+- [x] Borradores de contenido de marketing (bienvenida, piezas, copy VIP) — 17/07/2026
 
 ### Crítico (antes de clientes reales)
 - [ ] Pago de prueba Stripe (flujo completo)
-- [ ] Decidir y aplicar BD persistente (A o B)
+- [ ] Crear proyecto Postgres gratis (Supabase/Neon) y activar `DATABASE_URL` en Render — código ya listo, ver sección de arriba
+- [ ] Confirmar en real que `/analisis` responde tras el fix de API-Football (no verificado esta sesión: sin credenciales locales)
 
 ### Producto
-- [ ] Cerrar y liberar `/analisis`
+- [ ] Cerrar y liberar `/analisis` (pipeline funcional, pendiente de la confirmación en real de arriba)
 - [ ] Probar cancelación de suscripción con pago real
+- [ ] (Opcional) Fuzzy matching de nombres de equipo en `/analisis`
 
 ### Captación (cuando el producto esté listo)
-- [ ] Mensaje de bienvenida del canal gratis
-- [ ] Primeros contenidos / videos
-- [ ] Lead magnet (opcional)
+- [x] Mensaje de bienvenida del canal gratis (borrador, ver `docs/marketing/channel_welcome_message.md`)
+- [x] Primeros contenidos (borrador, ver `docs/marketing/content_pieces_batch1.md`)
+- [ ] Lead magnet (opcional, sigue pendiente — solo hay un outline en `content_strategy.md`)
+- [ ] Revisar y quitar cifras/testimonios inventados de `content_strategy.md` antes de usarlo (ver sesión 17/07/2026 continuación 4)
 
 ### Futuro
 - [ ] Publicación automática de picks
