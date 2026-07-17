@@ -79,6 +79,24 @@ Investigación externa (Gemini Deep Research) sobre más fuentes de datos deport
 - Requiere que **tú** te registres gratis en the-odds-api.com y pongas `ODDS_API_KEY` en `.env`. Si no se configura, no cambia nada.
 - Tests nuevos: `tests/test_odds_provider.py` + casos de enriquecimiento en `tests/test_match_analyzer.py` + casos en `tests/test_prompt_engine.py`. Todo en verde salvo el mismo fallo preexistente en `test_database.py`.
 
+### Sesión 17/07/2026 (continuación 3) — Fix crítico de API-Football + inicio de "consenso de tipsters"
+
+**Bug crítico encontrado y corregido**: `/analisis` fallaba en producción con "No pude encontrar datos" para CUALQUIER equipo (probado con Real Madrid vs Barcelona, España vs Argentina). Causa: `stats_fetcher.py` llamaba a API-Football vía **RapidAPI** (host `api-football-v1.p.rapidapi.com`), pero la clave real (`API_FOOTBALL_KEY` en Render) es de la cuenta **directa de API-Sports** (`dashboard.api-football.com`) — son dos sistemas de auth distintos. Verificado con curl real: RapidAPI devolvía 403, el host directo (`v3.football.api-sports.io` con header `x-apisports-key`) devuelve 200 con la cuenta real (plan Free, 100 req/día, activo hasta 2027-07-16). **Corregido y desplegado** (commit `eed1d0c`, push ya hecho, Render redeployando). Pendiente de confirmar por el usuario que `/analisis` ya funciona tras el redeploy.
+
+**Nueva iniciativa en marcha (NO completada)**: detección de "consenso entre tipsters" — leer canales públicos de Telegram de tipsters de confianza (que el usuario elija) y usarlo como señal agregada más para el prompt de Claude (ej. "4 de 6 tipsters monitorizados favorecen a X"), nunca republicando contenido literal ni atribuyendo a un tipster concreto (decisión explícita del usuario para evitar problemas de propiedad de contenido).
+
+Motivo técnico: el Bot API de Telegram (`TELEGRAM_BOT_TOKEN`) NO puede leer canales ajenos a los que no le añadan como admin. Hace falta la API de cliente (Telethon), que actúa como una cuenta de usuario real leyendo contenido público — como seguir el canal a mano, pero automatizado. Esto es legítimo para canales públicos (no es scraping de un sitio que lo prohíba, es contenido diseñado para difusión pública), a diferencia de TikTok (sin API, ToS lo prohíbe expresamente, descartado).
+
+Estado exacto a fecha de hoy:
+- Usuario creó cuenta de aplicación en my.telegram.org con su **número de trabajo** (decisión consciente, sabiendo que liga esa cuenta de Telegram a ese número).
+- `api_id = 36881932` (confirmado, sin ambigüedad).
+- `api_hash` pendiente de confirmar como texto plano (se dio por captura de pantalla, con riesgo de ambigüedad "l" vs "1" — **no usar el de la captura sin que el usuario lo confirme por texto**).
+- Creado `scripts/telegram_consensus_login.py` (login interactivo, debe ejecutarlo el usuario en su propia máquina — el código de verificación le llega a él, no se puede automatizar desde aquí). Genera una `TELEGRAM_CONSENSUS_SESSION` (string) que luego va al `.env`.
+- Añadido `telethon==1.34.0` a `requirements.txt`, y placeholders en `config/settings.py`/`.env.example` (`TELEGRAM_CONSENSUS_API_ID`, `TELEGRAM_CONSENSUS_API_HASH`, `TELEGRAM_CONSENSUS_SESSION`) — todavía sin lógica de lectura de canales ni de detección de consenso (eso es el siguiente paso, pendiente de que el usuario haga el login y dé la lista de canales de tipsters de confianza).
+- El usuario va a continuar este trabajo desde su **portátil** (dejará este ordenador aparcado una temporada). Repo ya empujado a GitHub (`eed1d0c`) para que el portátil pueda clonar/hacer pull. El `.env` NO se sube a git — el usuario debe copiarlo a mano o reconstruirlo desde Render + sus propios registros.
+
+**Próximo paso literal**: confirmar `api_hash` por texto → usuario ejecuta `scripts/telegram_consensus_login.py` (en el portátil o donde esté) → pega la sesión resultante en `.env` → dar la lista de canales de tipsters de confianza → diseñar la lógica de detección de consenso (heurística por palabras clave, no NLP completo).
+
 ### Reglas de negocio vigentes
 
 1. No invertir en publicidad hasta **10 clientes VIP de pago**.
