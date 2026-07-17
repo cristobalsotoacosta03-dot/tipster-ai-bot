@@ -65,3 +65,12 @@ dmypy.json
 *.db
 *.sqlite
 *.sqlite3
+
+# Media / assets pesados (no van en el repo)
+*.mp4
+*.mov
+*.avi
+*.mkv
+docs/marketing/video/
+
+

@@ -1,516 +1,200 @@
-# 📋 Manual Operativo - Tipster IA Bot
+# Manual Operativo - Tipster IA Bot
 
-**Última actualización:** 16/07/2026 - 12:42  
-**Actualizado por:** Tech Lead / Product Manager  
-**Próxima sesión:** 17/07/2026 (Lanzamiento)
-
----
-
-## 📍 Dónde nos quedamos (última sesión: 2026-07-16)
-
-**Contexto para retomar en otro PC / otra sesión con Claude:** este proyecto es un bot de Telegram (`@IdG_analisis_bot`) que da pronósticos de apuestas deportivas, con un canal gratis y un grupo VIP de pago vía Stripe. Está desplegado gratis en Render (Web Service, modo webhook) desde el repo de GitHub `cristobalsotoacosta03-dot/tipster-ai-bot`, rama `main`, con auto-deploy en cada push.
-
-### Lo que se hizo en esta sesión (de cero a desplegado):
-
-1. **Auditoría y fixes iniciales:**
-   - `main.py` llamaba a método bloqueante desde event loop (crash garantizado) → Corregido
-   - Manejador de señales apuntaba a método inexistente → Corregido
-   - 3 rondas de errores de build en Render solucionados
-
-2. **Migración a modo webhook:**
-   - Render eliminó plan Free para Background Worker
-   - Se migró de polling a webhook (servidor aiohttp propio)
-   - Rutas: `GET /`, `GET /health`, `POST /<token>`, `POST /webhook/stripe`
-
-3. **Flujo de negocio completo cerrado:**
-   - `/start` registra usuario en BD
-   - `/analisis` comprueba VIP real y límite diario gratuito
-   - `/premium` genera checkout real de Stripe
-   - Webhook `/webhook/stripe` activa VIP automáticamente
-   - Genera invitación real de un solo uso al grupo VIP
-
-4. **Decisiones de negocio:**
-   - `ANTHROPIC_API_KEY` desactivada (placeholder) → `/analisis` muestra "disponible muy pronto"
-   - Decisión: lanzar con picks manuales gratis + VIP de pago
-   - Invertir en Claude solo cuando haya ventas VIP en cola
-
-5. **Plan de publicidad TikTok creado:**
-   - Documento completo: `docs/marketing/tiktok_ads_plan.md`
-   - Estrategia escalonada: €0 → €30-50 → €100-200 → €300-500/mes
-   - ROI esperado: 4-11x
-   - **Regla de negocio:** No invertir en publicidad hasta 10 clientes VIP de pago
-
-6. **Repositorio organizado:**
-   - Limpiados archivos huérfanos
-   - Documentación reorganizada en `docs/`
-   - `MANUAL_OPERATIVO.md` es ahora la única fuente de estado real
-
-### Confirmado funcionando:
-- ✅ Build pasa en Render
-- ✅ `/start` responde en Telegram (probado con captura real)
-- ✅ Webhook de Stripe creado y configurado
-- ✅ Redis de Upstash conectado
-- ✅ UptimeRobot monitoreando `/health` cada 5 min
-- ✅ Repositorio actualizado en GitHub
+**Última actualización:** 17/07/2026  
+**Fuente de verdad del estado del proyecto** — actualizar en cada sesión relevante.
 
 ---
 
-## 🎯 Estado Actual del Proyecto
+## Dónde estamos ahora (17/07/2026)
 
-### ✅ COMPLETADO (Funcionando)
+Bot de Telegram (`@IdG_analisis_bot`) de análisis de apuestas deportivas, con canal gratis + grupo VIP de pago vía Stripe. Desplegado en Render (Web Service Free, webhook) desde GitHub `cristobalsotoacosta03-dot/tipster-ai-bot`, rama `main`, auto-deploy.
 
-1. **Infraestructura**
-   - [x] Bot desplegado en Render (Web Service, plan Free)
-   - [x] Modo webhook implementado
-   - [x] Auto-deploy desde GitHub
-   - [x] UptimeRobot configurado
-   - [x] Redis Upstash conectado
+### Estado del servicio (confirmado)
 
-2. **Funcionalidades del Bot**
-   - [x] `/start` - Registra usuario en BD
-   - [x] `/help` - Guía de comandos
-   - [x] `/status` - Estado del servicio
-   - [x] `/premium` - Genera checkout de Stripe
-   - [x] Webhook `/webhook/stripe` - Procesa pagos
-   - [x] Generación de invitaciones automáticas al grupo VIP
+| Componente | Estado |
+|---|---|
+| Sistema | Operativo |
+| Bot Telegram | En línea |
+| Claude AI | Conectado (API key configurada; `/analisis` aún no liberado al usuario) |
+| API de Datos (API-Football) | Configurada |
+| Stripe | Configurado |
+| Redis Upstash | Conectado |
+| UptimeRobot | Activo (`/health` cada 5 min) |
+| Canal gratis + Grupo VIP | Creados; bot es admin del VIP |
 
-3. **Pagos y Monetización**
-   - [x] Stripe configurado
-   - [x] Webhook activo
-   - [x] Checkout funcional
-   - [x] Variables de entorno en Render
+### Lo que funciona hoy
 
-4. **Documentación**
-   - [x] Manual Operativo (este archivo)
-   - [x] Guía de deploy (`docs/deployment/DEPLOY_NOW.md`)
-   - [x] Estrategia de contenido (`docs/marketing/content_strategy.md`)
-   - [x] Plan de publicidad TikTok (`docs/marketing/tiktok_ads_plan.md`)
-   - [x] Plan de lanzamiento (`docs/launch/launch_plan.md`)
+- `/start` — registra usuario en BD
+- `/help` — guía de comandos
+- `/status` — estado del servicio
+- `/premium` — checkout real de Stripe
+- Webhook `/webhook/stripe` — activa VIP + invitación de un solo uso al grupo
+- Build y deploy en Render OK
+- Dos canales de Telegram creados (captación + VIP)
 
-### ⚠️ PENDIENTE (Por hacer)
+### Lo que falta (prioridad)
 
-#### 🔴 CRÍTICO (Bloquea lanzamiento)
+1. **`/analisis`** — apartado de análisis aún no operativo de cara al usuario (siguiente bloque de trabajo técnico).
+2. **Pago de prueba Stripe** — validar flujo completo en modo TEST (tarjeta `4242…`) antes de clientes reales.
+3. **BD persistente** — SQLite se borra en cada redeploy del plan Free. Elegir:
+   - **A (rápida):** Render Starter $7/mes + disco 1GB
+   - **B (gratis):** PostgreSQL en Supabase/Neon (más código)
+4. Contenido y captación (manual por ahora; no bloquea el producto técnico).
 
-1. **Bot admin del grupo VIP** ⚠️
-   - **Estado:** NO confirmado
-   - **Acción requerida:** Ir a Telegram → Grupo VIP → Añadir @IdG_analisis_bot como admin con permiso "Invitar usuarios"
-   - **Por qué es crítico:** Sin esto, el pago se procesa pero el usuario NO recibe invitación al grupo
-   - **Cómo verificar:** Revisar logs de Render después de un pago de prueba
+### Sesión 17/07/2026 — Datos reales para `/analisis` (partidos previos, forma, h2h)
 
-2. **Pago de prueba en Stripe** ⚠️
-   - **Estado:** NO realizado
-   - **Acción requerida:** 
-     1. Activar modo TEST en Stripe
-     2. Comprar plan VIP con tarjeta de prueba (4242 4242 4242 4242)
-     3. Verificar flujo completo: pago → webhook → VIP activado → invitación enviada
-   - **Por qué es crítico:** Sin esto, no sabes si el flujo funciona antes de tener clientes reales
+Se pidió enriquecer el bot con "partidos previos de los equipos" al estilo BeSoccer/Sofascore para mejores pronósticos. Ninguno de los dos tiene API pública (Sofascore es scraping no oficial contra sus ToS; BeSoccer no tiene API), así que se optó por explotar mejor la fuente ya integrada y gratuita: **API-Football, plan free (100 req/día)**.
 
-3. **Base de datos persistente** ⚠️
-   - **Estado:** NO implementado
-   - **Problema:** SQLite se borra en cada redeploy en plan Free de Render
-   - **Impacto:** Se pierden usuarios, VIPs, historial de pagos
-   - **Opciones:**
-     - **Opción A (Recomendada):** Upgrade a Render Starter ($7/mes) → Disco persistente de 1GB
-     - **Opción B (Gratis):** Migrar a PostgreSQL en Supabase/Neon → Requiere cambios de código
-   - **Decisión pendiente:** Esperando que usuario elija opción
+Cambios de código:
+- `src/data/stats_fetcher.py` reescrito: se eliminó el bug de `league_id=39` (Premier League) y `season=2024` fijos — ahora se resuelve la liga y temporada real de cada equipo (`resolve_league_context`). Se añadieron fixtures reales recientes (`get_recent_fixtures`) para derivar forma (W/D/L), goles a favor/en contra y días de descanso reales. El head-to-head ahora también es estructurado (no solo texto), con % de BTTS y Over 2.5 reales calculados sobre los mismos partidos.
+- Se **eliminaron** las métricas que nunca fueron reales (xG, xGA, PPDA, posesión, métricas físicas, set pieces, formación, árbitro, clima, motivación): antes eran `dict.get(key, valor_inventado)` que siempre devolvían el valor fabricado y se presentaban a Claude/usuario como datos reales.
+- `src/analyzer/prompt_engine.py` reescrito para consumir solo datos reales; cuando falta un dato, el prompt dice "No disponible" en vez de inventar una cifra. De paso se corrigió un bug donde el prompt **premium (VIP, la parte de pago)** nunca recibía sus placeholders reales y mandaba a Claude texto con `$strategic_context` etc. literalmente sin sustituir.
+- `src/analyzer/match_analyzer.py`: arreglado el hack de timestamp (`logging.Formatter().formatTime(...)` → `datetime.now().isoformat()`).
+- Nueva interfaz `src/data/providers/base.py` (`MatchDataProvider` Protocol) para poder añadir en el futuro una segunda fuente gratuita y legítima (football-data.org, TheSportsDB) sin rehacer el pipeline. No se implementó ninguna fuente nueva esta sesión, solo la interfaz.
+- Tests nuevos: `tests/test_stats_fetcher.py`, `tests/test_match_analyzer.py`; `tests/test_prompt_engine.py` reescrito. `pytest` en verde salvo un fallo preexistente y no relacionado en `tests/test_database.py::test_get_user_analyses` (bug ya presente antes de esta sesión, no tocado).
 
-#### 🟡 IMPORTANTE (Afecta funcionalidad)
+Presupuesto de cuota: un análisis completo pasa de ~7 a ~11 llamadas a API-Football (con el nuevo fixtures/liga por equipo). Con caché (24h equipo/liga, 6h análisis completo vía `cache_manager.py`) se mantiene dentro del límite gratuito para uso moderado; si el volumen crece, hay que revisar el límite de 100 req/día.
 
-4. **`/analisis` deshabilitado**
-   - **Estado:** Desactivado (falta API key)
-   - **Acción requerida:** Comprar créditos en console.anthropic.com ($10-20 iniciales)
-   - **Regla de negocio:** No activar hasta tener 10+ clientes VIP pagando
-   - **Cuándo:** Cuando haya ventas en cola
+### Sesión 17/07/2026 (continuación) — Fuentes gratuitas adicionales (fallback)
 
-5. **Contenido 100% manual**
-   - **Estado:** No automatizado
-   - **Actual:** Usuario publica manualmente en canal Telegram
-   - **Futuro:** Podría automatizarse, pero no es prioritario para lanzamiento
+Se añadieron dos proveedores gratuitos más, usados **solo como fallback** cuando API-Football no encuentra alguno de los dos equipos (agotado el cupo de 100 req/día, o equipo fuera de su cobertura):
 
-#### 🟢 MEJORA (No bloquea)
+- **`src/data/providers/football_data_org.py`** — football-data.org, tier gratuito real (cuenta personal gratis, sin coste). Cubre ~12 competiciones top (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Champions League, etc.). Sin endpoint de búsqueda por nombre en el plan free, así que busca el equipo recorriendo la plantilla de cada competición (cacheado 24h).
+- **`src/data/providers/thesportsdb.py`** — TheSportsDB, tier gratuito real (cuenta personal gratis, sin coste). Solo da acceso a los últimos 5 partidos por equipo, así que su cobertura de forma/h2h es más limitada — es un fallback, no un sustituto de API-Football.
+- Ambos requieren que **tú** te registres gratis y pongas la clave en `.env` (`FOOTBALL_DATA_ORG_KEY`, `THESPORTSDB_API_KEY`). Si no se configuran, no hacen nada — cero cambio de comportamiento.
+- `src/data/providers/base.py` ganó una función compartida `build_match_data()` para que los tres proveedores (API-Football + los 2 nuevos) generen el mismo formato de datos hacia `prompt_engine.py`, sin duplicar código.
+- `match_analyzer.py`: nuevo método `_fetch_match_data()` que prueba API-Football primero y solo si falla intenta los fallbacks configurados, en orden.
+- Ninguno de los dos fallbacks da datos de lesiones (no existen en sus planes gratuitos) — se devuelve lista vacía, honesto, nunca inventado.
+- Tests nuevos: `tests/test_football_data_org.py`, `tests/test_thesportsdb.py`, y casos de fallback en `tests/test_match_analyzer.py`. Todo en verde salvo el mismo fallo preexistente y no relacionado en `test_database.py`.
 
-6. **Cancelación de suscripciones** - No probada con pagos reales
-7. **Tests de integración** - Solo hay tests unitarios
-8. **Monitoreo avanzado** - Faltan dashboards y alertas
+**Nota:** no se usó BeSoccer ni Sofascore — ninguno tiene API pública gratuita legítima (ver decisión de la sesión anterior).
+
+### Sesión 17/07/2026 (continuación 2) — Cuotas de mercado reales (The Odds API)
+
+Investigación externa (Gemini Deep Research) sobre más fuentes de datos deportivos. La mayoría de lo que propuso (TheStatsAPI, PropLine, iSports API, Statorium) tiene fuentes de verificación dudosas (marketing propio, directorios tipo listicle) — **no se integró nada de eso sin verificar antes**. Se confirmó de forma independiente (contrastando su documentación real) que **The Odds API** sí es fiable y con free tier real: 500 peticiones/mes, sin tarjeta.
+
+- **`src/data/odds_provider.py`** (nuevo) — `OddsProvider`, obtiene cuotas reales de casas de apuestas para ~6 ligas top europeas (una llamada por liga cubre todos sus partidos, cacheado 45 min). No forma parte del `MatchDataProvider` (es cuotas, no resultados); es un enriquecimiento opcional del pipeline.
+- `match_analyzer.py`: si `ODDS_API_KEY` está configurada, tras obtener `match_data` intenta añadir `market_odds` (cuotas medias reales + probabilidad implícita) — **best-effort, nunca bloquea el análisis** si falla o no encuentra el partido.
+- `prompt_engine.py`: nueva sección "Mercado de Cuotas" en los tres templates (full/express/premium), con cuotas reales cuando existen o "No disponible" si no. Se le pide a Claude que compare su propia estimación con la probabilidad implícita del mercado (sin quitar el margen de la casa — se avisa de que es probabilidad implícita bruta, no "verdadera").
+- Requiere que **tú** te registres gratis en the-odds-api.com y pongas `ODDS_API_KEY` en `.env`. Si no se configura, no cambia nada.
+- Tests nuevos: `tests/test_odds_provider.py` + casos de enriquecimiento en `tests/test_match_analyzer.py` + casos en `tests/test_prompt_engine.py`. Todo en verde salvo el mismo fallo preexistente en `test_database.py`.
+
+### Reglas de negocio vigentes
+
+1. No invertir en publicidad hasta **10 clientes VIP de pago**.
+2. No gastar en Claude a escala hasta tener ventas VIP en cola (créditos mínimos solo si hace falta probar `/analisis`).
+3. Resolver BD persistente **antes** de escalar con clientes reales.
+4. Validar flujo de pago completo antes de lanzar captación seria.
 
 ---
 
-## 🗂️ Qué aplicación se usa para cada cosa
+## Servicios (mapa rápido)
 
-| Servicio | Para qué | Dónde entrar | Estado |
+| Servicio | Para qué | Dónde | Estado |
 |---|---|---|---|
-| **GitHub** | Guarda código, auto-deploy en Render | github.com/cristobalsotoacosta03-dot/tipster-ai-bot | ✅ Activo |
-| **Render.com** | Aloja bot 24/7 (plan Free, webhook) | dashboard.render.com → tipster-ia-bot | ✅ Activo |
-| **BotFather** | Crea/admin bot (@IdG_analisis_bot) | Chat con @BotFather → `/mybots` | ✅ Configurado |
-| **Anthropic Console** | API de Claude (para `/analisis`) | console.anthropic.com | ⚠️ Pendiente activar |
-| **Stripe** | Cobra suscripciones VIP | dashboard.stripe.com | ✅ Configurado |
-| **Upstash** | Redis cache (gratis) | console.upstash.com | ✅ Conectado |
-| **UptimeRobot** | Mantiene bot despierto | dashboard.uptimerobot.com | ✅ Activo |
-| **API-Football** | Datos de partidos | api-football.com | ✅ Configurado |
-| **Telegram Grupo VIP** | Grupo de pago | @IdG_analisis_bot (grupo privado) | ⚠️ Pendiente: bot debe ser admin |
+| GitHub | Código + auto-deploy | github.com/cristobalsotoacosta03-dot/tipster-ai-bot | Activo |
+| Render.com | Hosting 24/7 (Free, webhook) | dashboard.render.com → tipster-ia-bot | Activo |
+| BotFather | Bot `@IdG_analisis_bot` | Telegram | Configurado |
+| Anthropic | Claude (análisis) | console.anthropic.com | Conectado; uso controlado |
+| Stripe | Suscripciones VIP | dashboard.stripe.com | Configurado |
+| Upstash | Redis cache | console.upstash.com | Conectado |
+| UptimeRobot | Keep-alive `/health` | dashboard.uptimerobot.com | Activo |
+| API-Football | Datos de partidos | api-football.com | Configurado |
+| Telegram VIP | Grupo de pago | privado, bot admin | Creado |
+| Telegram gratis | Canal captación | — | Creado |
 
 ---
 
-## 💰 Costes Actuales y Futuros
+## Costes
 
-| Concepto | Estado Actual | Cuándo Pagar / Cuánto |
+| Concepto | Ahora | Cuándo / cuánto |
 |---|---|---|
-| **Hosting (Render)** | Gratis (Web Service Free) | $7/mes (Starter) si necesitas disco persistente o eliminar "arranque en frío" |
-| **Telegram Bot API** | Gratis siempre | Nunca cuesta |
-| **Claude API (Anthropic)** | ⚠️ Desactivada (placeholder) | De pago por uso. Activar cuando tengas 10+ VIPs. $10-20 crédito inicial suficientes |
-| **Stripe** | Gratis crear cuenta | Comisión 1.4% + 0.25€ por cobro (se descuenta automáticamente) |
-| **Upstash Redis** | Gratis (tier free) | Solo si superas límite free tier |
-| **API-Football** | Gratis (100 req/día) | Planes de pago si necesitas >100 consultas/día |
-| **UptimeRobot** | Gratis (1 monitor) | Solo si quieres más monitores o intervalos más cortos |
-| **Publicidad TikTok** | €0 (orgánico) | No invertir hasta 10 clientes VIP. Luego: €30-50/semana (Semana 2), €100-200 (Semana 3-4) |
+| Render | €0 (Free) | $7/mes si Starter + disco |
+| Telegram | €0 | Nunca |
+| Claude | Conectado, uso mínimo | Por uso; activar a escala con 10+ VIP |
+| Stripe | €0 cuenta | 1.4% + 0.25€ por cobro |
+| Upstash | Free tier | Si se supera free |
+| API-Football | Free (100 req/día) | Plan de pago si hace falta |
+| UptimeRobot | Free (1 monitor) | — |
+| Publicidad | €0 | Solo tras 10 VIP |
 
-**Resumen de costes actuales: €0/mes**  
-**Costes cuando lances:** €0-50/mes (publicidad) + €7/mes (si upgrade Render) + comisiones Stripe
-
----
-
-## ⚠️ Limitaciones Conocidas
-
-1. **Tiempo de respuesta tras inactividad (30-60s)**
-   - UptimeRobot hace ping cada 5 min para evitar sleep
-   - No 100% garantizado que nunca haya "arranque en frío"
-   - **Solución definitiva:** Upgrade a Render Starter ($7/mes)
-
-2. **Base de datos NO persistente en plan Free**
-   - SQLite se borra en cada redeploy
-   - **Impacto:** Se pierden usuarios, VIPs, pagos
-   - **Solución:** Opción A ($7/mes disco) u Opción B (Postgres gratis)
-   - **Cuándo resolver:** Antes de tener clientes de pago reales
-
-3. **`/analisis` deshabilitado**
-   - Falta `ANTHROPIC_API_KEY` real
-   - Muestra "disponible muy pronto"
-   - **Cuándo activar:** Cuando tengas 10+ clientes VIP y quieras invertir en Claude
-
-4. **Bot debe ser admin del grupo VIP**
-   - Sin permiso "Invitar usuarios", no puede generar invitaciones
-   - **Acción:** Configurar YA antes de lanzar
-
-5. **Contenido 100% manual**
-   - No hay publicación automática en canal
-   - Usuario publica manualmente desde Telegram
-   - **Futuro:** Podría automatizarse, no prioritario
-
-6. **Cancelación de suscripciones no probada**
-   - Código está implementado pero no probado con pago real
-   - **Riesgo:** Bajo, pero hay que verificar
+**Coste actual: ~€0/mes.**
 
 ---
 
-## 📋 Checklist de Lanzamiento
+## Limitaciones conocidas
 
-### ✅ Completado
-- [x] Bot desplegado en Render (webhook, plan Free)
-- [x] `/start`, `/help`, `/status` funcionando
-- [x] `/premium` genera checkout real de Stripe
-- [x] Webhook de Stripe configurado (`/webhook/stripe`)
-- [x] UptimeRobot monitoreando `/health`
-- [x] Redis Upstash conectado
-- [x] API-Football configurada
-- [x] Repositorio actualizado en GitHub
-- [x] Plan de publicidad TikTok creado
-- [x] Documentación completa
-
-### 🔴 Pendiente CRÍTICO (Hacer antes de lanzar)
-- [ ] **Bot es admin del grupo VIP** (con permiso de invitar)
-- [ ] **Pago de prueba en Stripe** (validar flujo completo)
-- [ ] **Decidir: Opción A ($7/mes) u Opción B (Postgres gratis)** para BD persistente
-
-### 🟡 Pendiente IMPORTANTE (Hacer esta semana)
-- [ ] Configurar canal Telegram de captación (@TipsterIA_Gratis)
-- [ ] Grabar 4-5 videos para TikTok
-- [ ] Diseñar lead magnet (PDF "5 Errores")
-- [ ] Crear mensaje de bienvenida del canal
-- [ ] Compartir en grupos de apuestas
-
-### 🟢 Futuro (Mes 1-2)
-- [ ] Activar `/analisis` con Claude API (cuando tengas 10+ VIPs)
-- [ ] Migrar a PostgreSQL (cuando tengas ingresos)
-- [ ] Implementar publicación automática de picks
-- [ ] Añadir tests de integración
-- [ ] Mejorar monitoreo (dashboards, alertas)
+1. **Arranque en frío** (30–60s tras inactividad) en plan Free; UptimeRobot mitiga, no elimina.
+2. **SQLite no persistente** en Free → se pierden usuarios/VIP en redeploy.
+3. **`/analisis`** pendiente de cerrar y liberar al usuario.
+4. **Contenido manual** en canal (sin publicación automática).
+5. **Cancelación de suscripciones** implementada, no probada con pago real.
 
 ---
 
-## 🎯 Próximos Pasos Inmediatos (Orden de Prioridad)
+## Checklist
 
-### HOY - 16/07/2026 (Tarde)
+### Hecho
+- [x] Bot en Render (webhook, Free)
+- [x] `/start`, `/help`, `/status`
+- [x] `/premium` + webhook Stripe
+- [x] UptimeRobot + Redis + API-Football
+- [x] Repo en GitHub, auto-deploy
+- [x] Bot admin del grupo VIP
+- [x] Canal gratis + grupo VIP creados
+- [x] Documentación reorganizada (17/07/2026)
 
-**1. Hacer bot admin del grupo VIP (30 min)**
-```
-Pasos:
-1. Ir a Telegram → Grupo VIP
-2. Click en nombre del grupo → "Administradores"
-3. "Añadir administrador" → Buscar @IdG_analisis_bot
-4. Dar permisos: ✅ "Invitar usuarios" ✅ "Mensajes"
-5. Guardar
-6. Verificar en Render → Logs que no hay errores de permisos
-```
+### Crítico (antes de clientes reales)
+- [ ] Pago de prueba Stripe (flujo completo)
+- [ ] Decidir y aplicar BD persistente (A o B)
 
-**2. Hacer pago de prueba en Stripe (15 min)**
-```
-Pasos:
-1. Ir a dashboard.stripe.com
-2. Activar modo TEST (toggle superior derecho)
-3. Ir a "Productos" → Crear producto de prueba (€29.99)
-4. Ir a "Webhooks" → Verificar que el endpoint está activo
-5. Hacer checkout de prueba:
-   - Usar tarjeta: 4242 4242 4242 4242
-   - Fecha: cualquier fecha futura
-   - CVC: cualquier 3 dígitos
-6. Completar pago
-7. Verificar en Render → Logs:
-   - Webhook se dispara
-   - Usuario se marca como VIP
-   - Se genera invitación
-8. Verificar que usuario recibe link de invitación en Telegram
-```
+### Producto
+- [ ] Cerrar y liberar `/analisis`
+- [ ] Probar cancelación de suscripción con pago real
 
-**3. Verificar flujo completo (10 min)**
-```
-Checklist:
-- [ ] Pago se procesa en Stripe
-- [ ] Webhook llega a Render
-- [ ] Usuario se marca como VIP en BD
-- [ ] Se genera link de invitación
-- [ ] Usuario recibe link en Telegram
-- [ ] Usuario puede unirse al grupo VIP
-- [ ] Bot reconoce al usuario como VIP en `/status`
-```
+### Captación (cuando el producto esté listo)
+- [ ] Mensaje de bienvenida del canal gratis
+- [ ] Primeros contenidos / videos
+- [ ] Lead magnet (opcional)
 
-### MAÑANA - 17/07/2026
-
-**4. Decidir estrategia de base de datos (30 min)**
-```
-Opción A (Recomendada - Rápida):
-- Upgrade a Render Starter ($7/mes)
-- Configurar disco persistente 1GB
-- Ventaja: Sin cambios de código, 5 minutos
-- Desventaja: Coste $7/mes
-
-Opción B (Gratis - Más trabajo):
-- Migrar a PostgreSQL en Supabase/Neon
-- Modificar código (cambiar SQLite por SQLAlchemy)
-- Ventaja: Gratis, más escalable
-- Desventaja: 2-3 horas de trabajo
-
-Mi recomendación: Opción A por velocidad. Cuando tengas ingresos, migrar a Opción B.
-```
-
-**5. Si eliges Opción A: Configurar disco en Render (10 min)**
-```
-Pasos:
-1. Ir a dashboard.render.com → tipster-ia-bot
-2. "Disks" → "Add Disk"
-3. Name: tipster-data
-4. Mount Path: /opt/render/project/src/data
-5. Size: 1 GB
-6. Save
-7. Render hará redeploy automático
-```
-
-**6. Si eliges Opción B: Empezar migración a PostgreSQL (2-3h)**
-```
-Pasos:
-1. Crear cuenta en supabase.com (gratis)
-2. Crear proyecto PostgreSQL
-3. Obtener connection string
-4. Modificar código:
-   - Cambiar sqlite3 por SQLAlchemy
-   - Actualizar database.py
-   - Probar localmente
-5. Actualizar variables de entorno en Render
-6. Deploy y probar
-```
-
-**7. Grabar 2-3 videos para TikTok (2-3h)**
-```
-Videos a grabar (ver plan en docs/marketing/tiktok_ads_plan.md):
-1. "El Error #1 de los Apostadores" (45s)
-2. "Este Partido Tiene VALUE" (50s)
-3. "Cómo Ganar Apostando" (60s)
-
-Herramientas:
-- CapCut (edición)
-- Canva (gráficos)
-- Móvil para grabar
-
-Tips:
-- Hook en primeros 3 segundos
-- Texto en pantalla (muchos ven sin sonido)
-- CTA claro: "Link en bio"
-```
-
-### FIN DE SEMANA - 18/07/2026 (Lanzamiento)
-
-**8. Lanzamiento oficial**
-```
-Viernes 16/07 (Hoy):
-- [ ] 18:00 - Publicar primer video TikTok
-- [ ] 19:00 - Activar bot en producción
-- [ ] 20:00 - Primer análisis en vivo Telegram
-
-Sábado 17/07:
-- [ ] 10:00 - Video 2 + tips en canal
-- [ ] 15:00 - Compartir en grupos de apuestas
-- [ ] 19:00 - Análisis en vivo
-
-Domingo 18/07:
-- [ ] 10:00 - Resumen resultados fin de semana
-- [ ] 15:00 - Oferta especial lanzamiento
-- [ ] 19:00 - Cierre y estadísticas
-```
+### Futuro
+- [ ] Publicación automática de picks
+- [ ] Tests de integración
+- [ ] Monitoreo avanzado
 
 ---
 
-## 📊 Métricas a Monitorear (Dashboard Diario)
+## Siguiente paso técnico recomendado
 
-### Métricas de Video (TikTok)
-- Visualizaciones por video
-- Engagement rate (likes + comments + shares / views)
-- Tasa de finalización
-- Clics en bio
-- Compartidos
-
-**Objetivos:**
-- Video 1: 100+ views, 5% engagement
-- Video 2: 500+ views, 8% engagement
-- Video 3: 1,000+ views, 10% engagement
-
-### Métricas de Canal Telegram
-- Nuevos miembros por día
-- Tasa de retención
-- Clics en enlaces
-- Reportes de spam
-
-**Objetivos:**
-- Día 1: 50 miembros
-- Día 2: 200 miembros
-- Día 3: 500 miembros
-
-### Métricas de Bot
-- Usuarios únicos
-- Análisis solicitados
-- Tasa de conversión a VIP
-- Tiempo de respuesta
-
-**Objetivos:**
-- Día 1: 10 usuarios, 10 análisis
-- Día 2: 30 usuarios, 30 análisis
-- Día 3: 50 usuarios, 50 análisis
-
-### Métricas de Conversión
-- Clics en bio
-- Registros en Telegram
-- Checkouts iniciados
-- Pagos completados
-- Ingresos generados
-
-**Objetivos:**
-- Día 1: 0-2 clientes VIP
-- Día 2: 5-10 clientes VIP
-- Día 3: 10-20 clientes VIP
-- MRR inicial: €300-600
+1. **Cerrar `/analisis`** (flujo datos → Claude → formato → límites free/VIP).
+2. **Pago de prueba Stripe** en modo TEST y verificar logs en Render + invitación VIP.
+3. **BD persistente** (preferible A si se quiere velocidad; B si se quiere €0).
 
 ---
 
-## 🚨 Plan de Contingencia
+## Documentación del repo
 
-### Si el bot falla
-1. **Diagnóstico rápido (5 min):** Revisar logs en Render
-2. **Solución temporal (15 min):** Modo mantenimiento, ofrecer descuento compensatorio
-3. **Solución permanente (1-2h):** Fix + deploy hotfix
-
-### Si no hay tráfico
-1. Ampliar distribución (más grupos, influencers)
-2. Mejorar hooks (A/B testing)
-3. Ajustar CTA
-
-### Si no hay conversiones
-1. Revisar pricing (¿€29.99 es muy caro?)
-2. Mejorar pitch de venta
-3. Aumentar valor percibido
-4. Ofrecer descuento de lanzamiento (20-30%)
-
-### Si el CPA es muy alto (>€20)
-1. Restringir segmentación
-2. Mejorar targeting
-3. Mejorar creatividades
-4. Optimizar CTA
+| Archivo | Uso |
+|---|---|
+| `README.md` | Visión general + quickstart desarrollo |
+| `MANUAL_OPERATIVO.md` | **Este archivo** — estado real |
+| `PRINCIPIOS_IA.md` | Qué hace / no hace la IA |
+| `docs/README.md` | Índice de docs |
+| `docs/deployment/DEPLOY_NOW.md` | Runbook deploy Render |
+| `docs/technical/api_documentation.md` | Arquitectura técnica |
+| `docs/technical/prompts_documentation.md` | Diseño de prompts |
+| `docs/marketing/content_strategy.md` | Estrategia de contenido |
+| `docs/marketing/tiktok_ads_plan.md` | Plan ads (solo tras 10 VIP) |
 
 ---
 
-## 📈 Proyecciones Financieras
+## Contingencia rápida
 
-### Mes 1: Lanzamiento
-- **Inversión:** €130-230 (publicidad €80-130 + APIs €50-100)
-- **Ingresos:** 50 VIPs × €29.99 = €1,499
-- **ROI:** 6-11x
-
-### Mes 2: Crecimiento
-- **Inversión:** €400-670 (publicidad €300-500 + APIs €100-150)
-- **Ingresos:** 120 VIPs × €29.99 = €3,598
-- **ROI:** 5-9x
-
-### Mes 3: Escalamiento
-- **Inversión:** €820-1,350 (publicidad €600-1,000 + APIs €200-300)
-- **Ingresos:** 200 VIPs × €29.99 = €5,998
-- **ROI:** 4-7x
+- **Bot caído:** logs en Render → fix → redeploy.
+- **Sin tráfico:** más distribución orgánica; no ads hasta 10 VIP.
+- **Sin conversión:** revisar pitch/precio; no gastar en ads.
+- **CPA alto:** no aplica hasta fase de ads.
 
 ---
 
-## 🎓 Reglas de Negocio (No olvidar)
-
-1. **No invertir en publicidad hasta 10 clientes VIP** (regla definida)
-2. **No activar Claude API hasta tener ventas en cola** (decisión tomada)
-3. **Resolver BD persistente antes de escalar** (crítico)
-4. **Validar flujo de pago completo antes de lanzar** (crítico)
-5. **Monitorear métricas diariamente** durante lanzamiento
-
----
-
-## 📞 Contactos y Recursos
-
-### Servicios
-- **GitHub:** https://github.com/cristobalsotoacosta03-dot/tipster-ai-bot
-- **Render:** https://dashboard.render.com → tipster-ia-bot
-- **Stripe:** https://dashboard.stripe.com
-- **Anthropic:** https://console.anthropic.com
-- **Upstash:** https://console.upstash.com
-- **UptimeRobot:** https://dashboard.uptimerobot.com
-- **API-Football:** https://www.api-football.com
-
-### Documentación del Proyecto
-- `README.md` - Información general del proyecto
-- `MANUAL_OPERATIVO.md` - Este archivo (estado real)
-- `docs/deployment/DEPLOY_NOW.md` - Guía de deployment
-- `docs/marketing/content_strategy.md` - Estrategia de contenido
-- `docs/marketing/tiktok_ads_plan.md` - Plan de publicidad TikTok
-- `docs/launch/launch_plan.md` - Plan de lanzamiento
-
----
-
-## ✅ Checklist Rápido (Para próxima sesión)
-
-Antes de empezar a trabajar, verificar:
-
-- [ ] Bot está corriendo en Render (ver logs)
-- [ ] UptimeRobot está activo (ver dashboard)
-- [ ] Stripe está configurado (ver webhook)
-- [ ] Redis Upstash está conectado
-- [ ] GitHub tiene los últimos cambios
-
-Si algo falla, revisar `MANUAL_OPERATIVO.md` sección "Limitaciones Conocidas".
-
----
-
-**Preparado por:** Tech Lead / Product Manager  
-**Última actualización:** 16/07/2026 - 12:42  
-**Próxima actualización:** 17/07/2026 (Post-lanzamiento)
-
-**Nota para Claude:** Este archivo es la fuente de verdad del estado del proyecto. Actualízalo cada vez que haya cambios importantes.
+**Nota:** Actualizar este archivo en cada sesión con cambios de estado reales. No mezclar proyecciones con hechos.

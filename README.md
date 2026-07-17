@@ -1,199 +1,92 @@
-# 🤖 Tipster IA Bot
+# Tipster IA Bot
 
-Servicio de análisis de apuestas deportivas impulsado por Claude AI. Análisis táctico-profesional con estadísticas avanzadas para maximizar el value betting a largo plazo.
+Servicio de análisis de apuestas deportivas con Claude AI. Bot de Telegram con plan gratuito + VIP (Stripe).
 
-> 📍 **¿Buscas el estado real del proyecto (qué está hecho, qué falta, qué se hizo en la última sesión)?** Eso vive en [`MANUAL_OPERATIVO.md`](MANUAL_OPERATIVO.md), no en este README. Para un índice completo de toda la documentación, ver [`docs/README.md`](docs/README.md).
+> **Estado real del proyecto** (qué está hecho, qué falta): [`MANUAL_OPERATIVO.md`](MANUAL_OPERATIVO.md).  
+> Índice de docs: [`docs/README.md`](docs/README.md).  
+> Política de IA: [`PRINCIPIOS_IA.md`](PRINCIPIOS_IA.md).
 
-## 📋 Características
+## Estado actual (resumen)
 
-- **Análisis Inteligente:** Evaluación profunda de partidos usando Claude 3.5 Sonnet
-- **Estadísticas Avanzadas:** xG, PPDA, progresión ofensiva, eficiencia defensiva
-- **Análisis Táctico:** Sistemas de juego, pressing, transiciones, construcción de juego
-- **Sistema de Monetización:** Plan gratuito + VIP con acceso a grupo exclusivo
-- **Automatización Completa:** Desde el análisis hasta el cobro y acceso automático
+| Componente | Estado |
+|---|---|
+| Bot Telegram | En línea (Render, webhook) |
+| Claude AI | Conectado |
+| API de datos | Configurada |
+| Stripe VIP | Configurado |
+| Canales Telegram | Creados (gratis + VIP) |
+| `/analisis` | Pendiente de cerrar |
 
-## 🏗️ Arquitectura
+## Características
+
+- Análisis con Claude y estadísticas avanzadas (xG, PPDA, etc.)
+- Plan free (límites diarios) + VIP con grupo exclusivo
+- Checkout Stripe y activación automática de acceso
+- Deploy en Render con auto-deploy desde GitHub
+
+## Arquitectura
 
 ```
 tipster-ia-bot/
 ├── src/
-│   ├── bot/                    # Lógica del bot de Telegram
-│   │   ├── telegram_bot.py    # Conexión y comandos de Telegram
-│   │   └── formatters.py      # Formateo de análisis
-│   ├── analyzer/               # Motor de análisis con Claude
-│   │   ├── claude_client.py   # Cliente de Anthropic API
-│   │   ├── prompt_engine.py   # Generación de prompts tácticos
-│   │   └── match_analyzer.py  # Orquestación de análisis
-│   ├── data/                   # Fuentes de datos
-│   │   ├── stats_fetcher.py   # Obtención de estadísticas
-│   │   ├── cache_manager.py   # Cache para optimizar costes
-│   │   └── database.py        # Gestión de base de datos
-│   └── monetization/           # Sistema de pagos
-│       ├── payment_handler.py # Gestión de suscripciones
-│       └── access_control.py  # Control de acceso VIP
-├── config/
-│   └── settings.py            # Configuración general
+│   ├── bot/           # Telegram (comandos, formatters)
+│   ├── analyzer/      # Claude, prompts, orquestación
+│   ├── data/          # Stats, cache, BD
+│   ├── monetization/  # Stripe, control de acceso
+│   └── utils/
+├── config/settings.py
 ├── tests/
-├── .env.example
-├── requirements.txt
-├── render.yaml
-└── main.py                     # Punto de entrada
+├── docs/              # Técnica, deploy, marketing
+├── main.py
+└── render.yaml
 ```
 
-## 🚀 Inicio Rápido
+## Inicio rápido (desarrollo local)
 
-### Prerrequisitos
+**Requisitos:** Python 3.11+, tokens de Telegram, Anthropic, Stripe, API-Football.
 
-- Python 3.11+
-- Cuenta en [Anthropic Console](https://console.anthropic.com/) (API key)
-- Cuenta en [Telegram](https://telegram.org/) (Bot token via @BotFather)
-- Cuenta en [Stripe](https://stripe.com/) (para pagos)
-- Cuenta en [API-Football](https://www.api-football.com/) (estadísticas)
-
-### Instalación
-
-1. **Clonar el repositorio**
 ```bash
 git clone https://github.com/cristobalsotoacosta03-dot/tipster-ai-bot.git
 cd tipster-ai-bot
-```
 
-2. **Crear entorno virtual**
-```bash
 python -m venv venv
-
 # Windows
 venv\Scripts\activate
-
 # Linux/Mac
 source venv/bin/activate
-```
 
-3. **Instalar dependencias**
-```bash
 pip install -r requirements.txt
-```
-
-4. **Configurar variables de entorno**
-```bash
-# Copiar archivo de ejemplo
-cp .env.example .env
-
-# Editar con tus credenciales
-nano .env  # o usa tu editor preferido
-```
-
-5. **Ejecutar el bot**
-```bash
+cp .env.example .env   # rellenar credenciales
 python main.py
 ```
 
-## 📝 Configuración
+Variables principales: ver `.env.example` (`TELEGRAM_*`, `ANTHROPIC_API_KEY`, `STRIPE_*`, `API_FOOTBALL_KEY`, Redis opcional).
 
-Edita el archivo `.env` con tus credenciales:
+## Comandos del bot
 
-```env
-# Telegram
-TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
-TELEGRAM_ADMIN_ID=123456789
-TELEGRAM_VIP_GROUP_ID=-1001234567890
+| Comando | Descripción |
+|---|---|
+| `/start` | Bienvenida y registro |
+| `/help` | Guía |
+| `/analisis [eq1] vs [eq2]` | Análisis (en desarrollo) |
+| `/premium` | Plan VIP / checkout |
+| `/status` | Estado del servicio |
 
-# Anthropic
-ANTHROPIC_API_KEY=sk-ant-api03-...
+## Monetización
 
-# Stripe
-STRIPE_API_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID_MONTHLY=price_...
-STRIPE_PRICE_ID_YEARLY=price_...
+- **Gratis:** límites diarios + canal público  
+- **VIP:** €29.99/mes (o anual con descuento) — análisis ampliados + grupo VIP  
 
-# API de Datos
-API_FOOTBALL_KEY=...
+## Stack
 
-# Redis (opcional, para cache)
-UPSTASH_REDIS_REST_URL=...
-UPSTASH_REDIS_REST_TOKEN=...
-```
+Python 3.11 · Anthropic Claude · python-telegram-bot · API-Football · Stripe · Redis (Upstash) · Render
 
-## 🎯 Comandos del Bot
+## Seguridad
 
-- `/start` - Mensaje de bienvenida
-- `/help` - Guía de comandos
-- `/analisis [equipo1] vs [equipo2]` - Análisis completo del partido
-- `/premium` - Información sobre plan VIP
-- `/status` - Estado del servicio
+- No commitear `.env`
+- Credenciales solo por variables de entorno
+- Rate limiting y control de costes de API en producción
 
-## 💰 Modelo de Monetización
+## Licencia
 
-### Plan Gratuito
-- 2 análisis gratuitos por día
-- Tips básicos en canal público
-- Contenido educativo
-
-### Plan VIP - €29.99/mes
-- Análisis diarios de 3-5 partidos seleccionados
-- Pronósticos con stake recomendado (1-5 unidades)
-- Análisis táctico avanzado y estadísticas métricas
-- Acceso al grupo VIP de Telegram exclusivo
-- Seguimiento en vivo de picks
-- Historial de resultados y estadísticas de acierto
-- Soporte prioritario
-
-**Plan Anual:** €299/año (ahorra 2 meses)
-
-## 🛠️ Stack Tecnológico
-
-- **Lenguaje:** Python 3.11+
-- **IA:** Anthropic API (Claude 3.5 Sonnet)
-- **Bot:** python-telegram-bot v20+
-- **Datos:** API-Football / API-Sports
-- **Pagos:** Stripe
-- **Cache:** Redis (Upstash)
-- **Deploy:** Render.com
-- **Logs:** Colorlog con salida a archivo
-
-## 📊 Historial: Sprint inicial de 7 días
-
-El proyecto se construyó siguiendo un sprint de 7 días (fundación técnica → motor de análisis → lógica del bot → testing → contenido → lanzamiento → optimización). El plan y los logs diarios de ese sprint están archivados en [`docs/archive/`](docs/archive/) como contexto histórico.
-
-⚠️ Ese archivo incluye documentos de planificación con objetivos y simulaciones de resultados de lanzamiento — **no son un registro de hechos reales**. El estado real y verificado (deploy, pagos, usuarios) se mantiene únicamente en [`MANUAL_OPERATIVO.md`](MANUAL_OPERATIVO.md).
-
-## 🎨 Prompt de Análisis
-
-El sistema utiliza un prompt maestro especializado que incluye:
-
-1. **Contextualización:** Liga, momento de temporada, motivación
-2. **Análisis Táctico:** Sistemas de juego, pressing, transiciones
-3. **Estadísticas Avanzadas:** xG, PPDA, progresión ofensiva
-4. **Factores Ambientales:** Cancha, clima, ambiente
-5. **Lesiones/Sanciones:** Impacto en rendimiento
-6. **Pronóstico:** Con stake recomendado (1-5 unidades)
-7. **Justificación Técnica:** Razonamiento detallado
-
-## 📈 Métricas de Éxito
-
-- Bot funcionando 24/7 sin caídas
-- 100+ miembros en canal gratuito (Semana 1)
-- 10-20 clientes de pago (Semana 1)
-- 5 videos con 1K+ visualizaciones totales
-- ROI positivo desde día 1
-
-## 🔒 Seguridad
-
-- Nunca commitees el archivo `.env` a Git
-- Usa variables de entorno para todas las credenciales
-- Rota las API keys regularmente
-- Implementa rate limiting en producción
-- Monitorea el uso de API para control de costes
-
-## 📝 Licencia
-
-Este proyecto es privado y confidencial. Todos los derechos reservados.
-
-## 👨‍💻 Autor
-
-Desarrollado con ❤️ usando Claude AI
-
----
-
-**¿Preguntas?** Contacta al equipo de desarrollo.
+Proyecto privado. Todos los derechos reservados.
