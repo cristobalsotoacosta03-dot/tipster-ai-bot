@@ -27,7 +27,12 @@ class ClaudeClient:
         purchased.
         """
         self.enabled = bool(settings.anthropic_api_key)
-        self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key) if self.enabled else None
+        # AsyncAnthropic (not the sync Anthropic client) is required here: this
+        # client is only ever called from async handlers (analyze_match,
+        # health_check). Using the sync client with a blocking .create() call
+        # would freeze the bot's entire event loop — and every other user's
+        # request — for the duration of each Claude API call.
+        self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key) if self.enabled else None
         self.model = "claude-3-5-sonnet-20241022"
         self.max_tokens = 4096
         self.temperature = 0.7
@@ -64,7 +69,7 @@ class ClaudeClient:
         try:
             logger.info(f"Sending analysis request to Claude (prompt length: {len(prompt)} chars)")
 
-            message = self.client.messages.create(
+            message = await self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens or self.max_tokens,
                 temperature=self.temperature,
@@ -102,7 +107,7 @@ class ClaudeClient:
         return """Eres un experto analista de apuestas deportivas con más de 15 años de experiencia 
 en fútbol profesional. Tu conocimiento abarca:
 
-- Análisis táctico avanzado (sistemas de juego, pressing, transiciones,构建ción de juego)
+- Análisis táctico avanzado (sistemas de juego, pressing, transiciones, construcción de juego)
 - Estadísticas métricas avanzadas (xG, PPDA, progresión ofensiva, eficiencia defensiva)
 - Factores contextuales (motivación, calendario, ambiente, historial)
 - Gestión de bankroll y value betting
@@ -133,7 +138,7 @@ Recuerda: El objetivo es el valor a largo plazo, no ganar siempre."""
             return False
 
         try:
-            response = self.client.messages.create(
+            response = await self.client.messages.create(
                 model=self.model,
                 max_tokens=10,
                 messages=[{"role": "user", "content": "Hi"}]
