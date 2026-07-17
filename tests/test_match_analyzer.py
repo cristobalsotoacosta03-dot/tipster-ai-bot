@@ -219,3 +219,28 @@ class TestMatchAnalyzerOddsEnrichment:
 
         assert result is not None
         assert result["match_data"]["market_odds"] is None
+
+
+class TestGenerateMatchId:
+    """Accented/punctuated team names must normalize to the same cache key
+    as their plain-ASCII equivalent, or the cache silently misses."""
+
+    @pytest.fixture
+    def analyzer(self):
+        return MatchAnalyzer()
+
+    def test_accents_are_stripped(self, analyzer):
+        assert analyzer._generate_match_id("Atlético", "River Plate") == \
+            analyzer._generate_match_id("Atletico", "River Plate")
+
+    def test_matches_diacritics_across_scripts(self, analyzer):
+        assert analyzer._generate_match_id("São Paulo", "Flamengo") == \
+            analyzer._generate_match_id("Sao Paulo", "Flamengo")
+
+    def test_case_and_whitespace_insensitive(self, analyzer):
+        assert analyzer._generate_match_id("Real Madrid", "Barcelona") == \
+            analyzer._generate_match_id("  real madrid  ", "BARCELONA")
+
+    def test_different_teams_produce_different_ids(self, analyzer):
+        assert analyzer._generate_match_id("Real Madrid", "Barcelona") != \
+            analyzer._generate_match_id("Real Madrid", "Sevilla")

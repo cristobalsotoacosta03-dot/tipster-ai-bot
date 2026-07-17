@@ -3,6 +3,8 @@ Match Analyzer - Core analysis engine.
 Integrates StatsFetcher, PromptEngine, ClaudeClient, and CacheManager
 to provide complete match analysis workflow.
 """
+import re
+import unicodedata
 from typing import Dict, Any, Optional
 from dataclasses import asdict
 from datetime import datetime
@@ -263,14 +265,23 @@ class MatchAnalyzer:
         Returns:
             Match ID string
         """
-        # Normalize team names
-        home = home_team.lower().strip()
-        away = away_team.lower().strip()
-        
+        # Normalize team names: strip accents/diacritics and punctuation so
+        # "Atlético" and "Atletico" (or "São Paulo" / "Sao Paulo") map to the
+        # same cache entry instead of silently missing the cache.
+        home = self._normalize_team_name(home_team)
+        away = self._normalize_team_name(away_team)
+
         # Create ID
         match_id = f"{home}_vs_{away}"
-        
+
         return match_id
+
+    @staticmethod
+    def _normalize_team_name(team_name: str) -> str:
+        """Lowercase, strip accents/diacritics, and collapse non-alphanumeric chars."""
+        normalized = unicodedata.normalize("NFKD", team_name.strip().lower())
+        without_accents = "".join(c for c in normalized if not unicodedata.combining(c))
+        return re.sub(r"[^a-z0-9]+", "", without_accents)
     
     async def health_check(self) -> Dict[str, bool]:
         """
