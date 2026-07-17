@@ -43,6 +43,24 @@ class Settings(BaseSettings):
     # FOOTBALL DATA API
     # ===========================================
     api_football_key: Optional[str] = None
+
+    # Optional free fallback data sources, used only when API-Football can't
+    # find one of the two teams. See src/data/providers/.
+    football_data_org_key: Optional[str] = None
+    thesportsdb_api_key: Optional[str] = None
+
+    # Optional: real bookmaker odds (The Odds API, free tier: 500 req/month,
+    # no card required) to compare the model's confidence against the
+    # market's implied probability. See src/data/odds_provider.py.
+    odds_api_key: Optional[str] = None
+
+    # Optional: Telegram "consensus" reader - reads public channels from a
+    # separate user account (not the bot) to detect tipster agreement on a
+    # match. Get api_id/api_hash from https://my.telegram.org, then run
+    # scripts/telegram_consensus_login.py once to obtain the session string.
+    telegram_consensus_api_id: Optional[str] = None
+    telegram_consensus_api_hash: Optional[str] = None
+    telegram_consensus_session: Optional[str] = None
     
     # ===========================================
     # REDIS CACHE (Upstash)

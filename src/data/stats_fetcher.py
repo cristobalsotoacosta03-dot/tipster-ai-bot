@@ -1,61 +1,100 @@
 """
 Football Statistics Fetcher.
-Connects to API-Football to retrieve real-time match data, team statistics,
-and historical information for analysis.
+Connects to API-Football's free tier (direct API-Sports account, via
+dashboard.api-football.com - NOT RapidAPI) to retrieve real fixtures,
+head-to-head history, standings, and injuries for match analysis.
+
+Design note: earlier versions of this module also returned "advanced"
+metrics (xG, PPDA, possession, physical/set-piece stats) and contextual
+fields (referee, weather, formation, matchday). Those were never part of
+API-Football's actual response schema for this tier - they were silent
+`dict.get(key, fabricated_default)` fallbacks that always returned the
+fabricated default and were presented to the user/Claude as real data.
+They have been removed rather than kept as fake numbers. Only fields the
+API genuinely returns (team info, fixtures, standings, head-to-head,
+injuries) are used, and everything derived from them (form, rest days,
+BTTS/over-under trends) is computed from real match results.
 """
 from typing import Dict, Any, List, Optional
 import aiohttp
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from config.settings import settings
+from src.data.providers.base import (
+    FixtureResult,
+    HeadToHead,
+    TeamForm,
+    TeamRef,
+    build_match_data,
+    derive_form,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class StatsFetcher:
     """
-    Fetches football statistics from API-Football.
-    Provides team data, match information, and historical statistics.
+    Fetches football data from API-Football's free tier.
+    Provides team info, real recent fixtures/form, standings, head-to-head
+    and injuries. Implements the `MatchDataProvider` contract informally
+    (see src/data/providers/base.py).
     """
-    
-    def __init__(self):
-        """Initialize stats fetcher with API configuration."""
+
+    def __init__(self, cache_manager=None):
+        """Initialize stats fetcher with API configuration.
+
+        Args:
+            cache_manager: optional CacheManager instance. When provided,
+                team info and league context are cached to stay within the
+                free tier's 100 requests/day budget.
+        """
         self.api_key = settings.api_football_key
-        self.base_url = "https://api-football-v1.p.rapidapi.com/v3"
+        # Direct API-Sports host (dashboard.api-football.com), not RapidAPI -
+        # these are two different auth schemes for the same underlying data.
+        # A RapidAPI-issued key would need X-RapidAPI-Key/X-RapidAPI-Host
+        # against api-football-v1.p.rapidapi.com instead.
+        self.base_url = "https://v3.football.api-sports.io"
         self.headers = {
-            "X-RapidAPI-Key": self.api_key,
-            "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+            "x-apisports-key": self.api_key,
         }
         self.session: Optional[aiohttp.ClientSession] = None
+        self.cache_manager = cache_manager
         logger.info("Stats Fetcher initialized")
-    
+
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
         if self.session is None or self.session.closed:
             self.session = aiohttp.ClientSession(headers=self.headers)
         return self.session
-    
+
     async def close(self) -> None:
         """Close the aiohttp session."""
         if self.session and not self.session.closed:
             await self.session.close()
-    
-    async def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Dict]:
+
+    def _current_season(self) -> int:
+        """European season year: the season that started in August of the
+        prior calendar year is still the 'current' one until the following
+        August."""
+        now = datetime.now()
+        return now.year if now.month >= 8 else now.year - 1
+
+    async def _make_request(self, endpoint: str, params: Optional[Dict] = None) -> Optional[Any]:
         """
         Make API request to API-Football.
-        
+
         Args:
             endpoint: API endpoint
             params: Query parameters
-            
+
         Returns:
             API response data or None if error
         """
         try:
             session = await self._get_session()
             url = f"{self.base_url}/{endpoint}"
-            
+
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -66,32 +105,32 @@ class StatsFetcher:
                 else:
                     logger.error(f"API-Football error: {response.status}")
                     return None
-                    
+
         except Exception as e:
             logger.error(f"Error making request to {endpoint}: {e}", exc_info=True)
             return None
-    
+
     async def get_team_info(self, team_name: str) -> Optional[Dict[str, Any]]:
         """
-        Get team information by name.
-        
-        Args:
-            team_name: Team name to search
-            
-        Returns:
-            Team information dictionary
+        Get team information by name (id, name, country, venue). Cached
+        24h when a cache_manager is available, since a team's identity
+        never changes intra-season.
         """
+        if self.cache_manager:
+            cached = await self.cache_manager.get_cached_team_info(team_name)
+            if cached:
+                return cached
+
         try:
-            # Search for team
             data = await self._make_request("teams", {"search": team_name})
-            
+
             if not data or len(data) == 0:
                 logger.warning(f"Team not found: {team_name}")
                 return None
-            
+
             team = data[0].get("team", {})
-            
-            return {
+
+            info = {
                 "id": team.get("id"),
                 "name": team.get("name"),
                 "country": team.get("country"),
@@ -99,290 +138,257 @@ class StatsFetcher:
                 "venue_name": team.get("venue_name", ""),
                 "venue_capacity": team.get("venue_capacity", 0),
             }
-            
+
+            if self.cache_manager:
+                await self.cache_manager.cache_team_info(team_name, info)
+
+            return info
+
         except Exception as e:
             logger.error(f"Error getting team info for {team_name}: {e}", exc_info=True)
             return None
-    
-    async def get_team_statistics(
-        self,
-        team_id: int,
-        league_id: int,
-        season: int = 2024
+
+    async def resolve_league_context(
+        self, team_id: int, country: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Get detailed team statistics for a specific league and season.
-        
-        Args:
-            team_id: Team ID
-            league_id: League ID
-            season: Season year
-            
+        Resolve the domestic league a team is currently playing in, and the
+        current season year, instead of assuming a fixed league/season.
+
         Returns:
-            Team statistics dictionary
+            {"league_id": int, "league_name": int, "season": int} or None
+            if it can't be determined (never falls back to a guessed league).
         """
+        cache_key = f"league_context:{team_id}"
+        if self.cache_manager:
+            cached = await self.cache_manager.get(cache_key)
+            if cached:
+                return cached
+
         try:
-            data = await self._make_request(
-                "teams/statistics",
-                {
-                    "team": team_id,
-                    "league": league_id,
-                    "season": season
-                }
-            )
-            
+            data = await self._make_request("leagues", {"team": team_id})
+
             if not data:
                 return None
-            
-            # Extract relevant statistics
-            stats = {
-                # Position and points
-                "position": data.get("league", {}).get("standings", {}).get("regular", [{}])[0].get("rank", 10),
-                "points": data.get("league", {}).get("standings", {}).get("regular", [{}])[0].get("points", 0),
-                
-                # Form
-                "form": data.get("form", ""),
-                
-                # Goals
-                "goals_for": data.get("goals", {}).get("for", {}).get("total", {}).get("total", 0),
-                "goals_against": data.get("goals", {}).get("against", {}).get("total", {}).get("total", 0),
-                
-                # xG (if available)
-                "xg": data.get("xg", 1.5),
-                "xga": data.get("xga", 1.2),
-                
-                # Advanced metrics
-                "ppda": data.get("ppda", {}).get("attacks", 10),
-                "possession": data.get("possession", {}).get("total", 50),
-                "territorial_presence": data.get("territorial_presence", 45),
-                "progressive_carries": data.get("progressive_carries", 150),
-                
-                # Shots
-                "shots_on_target": data.get("shots", {}).get("on_target", {}).get("total", {}).get("average", 5),
-                "shots_in_box_against": data.get("shots", {}).get("inside_box", {}).get("against", {}).get("total", 3),
-                
-                # Big chances
-                "big_chances_scored": data.get("big_chances", {}).get("scored", 10),
-                "big_chances_missed": data.get("big_chances", {}).get("missed", 5),
-                "big_chances_conversion": self._calculate_big_chances_conversion(
-                    data.get("big_chances", {}).get("scored", 10),
-                    data.get("big_chances", {}).get("missed", 5)
-                ),
-                
-                # Goalkeeper
-                "gk_saves": data.get("goalkeeper", {}).get("saves", {}).get("total", 50),
-                
-                # Set pieces
-                "corners_goals": data.get("set_pieces", {}).get("corners", {}).get("goals", 5),
-                "freekicks_goals": data.get("set_pieces", {}).get("freekicks", {}).get("goals", 3),
-                "set_pieces_efficiency": self._assess_set_pieces_efficiency(data.get("set_pieces", {})),
-                
-                # Physical metrics (simplified - would need separate API in production)
-                "avg_distance_km": data.get("physical", {}).get("avg_distance", 105),
-                "sprints_last3": data.get("physical", {}).get("sprints", 450),
-                "rotations": data.get("lineups", {}).get("rotations", 3),
-                
-                # Recent xG
-                "xg_last5": data.get("xg", {}).get("last5", 1.5),
-                
-                # Conversion rate
-                "conversion_rate": self._calculate_conversion_rate(
-                    data.get("goals", {}).get("for", {}).get("total", {}).get("total", 0),
-                    data.get("shots", {}).get("total", {}).get("total", 100)
-                ),
+
+            candidates = []
+            for entry in data:
+                league = entry.get("league", {})
+                if league.get("type") != "League":
+                    continue
+                for season in entry.get("seasons", []):
+                    if season.get("current"):
+                        candidates.append({
+                            "league_id": league.get("id"),
+                            "league_name": league.get("name"),
+                            "season": season.get("year"),
+                            "country": entry.get("country", {}).get("name"),
+                        })
+
+            if not candidates:
+                return None
+
+            # Prefer the domestic league matching the team's own country
+            # (avoids picking an international cup the team also plays in).
+            match = next(
+                (c for c in candidates if country and c.get("country") == country),
+                candidates[0],
+            )
+
+            context = {
+                "league_id": match["league_id"],
+                "league_name": match["league_name"],
+                "season": match["season"],
             }
-            
-            return stats
-            
+
+            if self.cache_manager:
+                await self.cache_manager.set(cache_key, context, ttl=86400)
+
+            return context
+
         except Exception as e:
-            logger.error(f"Error getting team statistics for team {team_id}: {e}", exc_info=True)
+            logger.error(f"Error resolving league context for team {team_id}: {e}", exc_info=True)
             return None
-    
+
+    async def get_recent_fixtures(self, team_id: int, last: int = 5) -> List[Dict[str, Any]]:
+        """Get a team's last N completed fixtures (real results)."""
+        try:
+            data = await self._make_request("fixtures", {"team": team_id, "last": last})
+            if not data:
+                return []
+
+            fixtures = []
+            for fx in data:
+                home = fx.get("teams", {}).get("home", {})
+                away = fx.get("teams", {}).get("away", {})
+                goals = fx.get("goals", {})
+                fixtures.append({
+                    "date": fx.get("fixture", {}).get("date", ""),
+                    "home_id": home.get("id"),
+                    "home_name": home.get("name", "Local"),
+                    "away_id": away.get("id"),
+                    "away_name": away.get("name", "Visitante"),
+                    "home_goals": goals.get("home") if goals.get("home") is not None else 0,
+                    "away_goals": goals.get("away") if goals.get("away") is not None else 0,
+                })
+            return fixtures
+
+        except Exception as e:
+            logger.error(f"Error getting recent fixtures for team {team_id}: {e}", exc_info=True)
+            return []
+
+    async def get_recent_form(self, team_id: int, last: int = 5) -> TeamForm:
+        """Fetch recent fixtures and derive real form from them."""
+        fixtures = await self.get_recent_fixtures(team_id, last=last)
+        return derive_form(team_id, fixtures)
+
+    async def get_standing_for_team(
+        self, league_id: int, season: int, team_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Look up a team's real row in the league standings table."""
+        table = await self.get_league_table(league_id, season)
+        for row in table:
+            if row.get("team_id") == team_id:
+                return row
+        return None
+
     async def get_match_data(
         self,
         home_team: str,
         away_team: str
     ) -> Optional[Dict[str, Any]]:
         """
-        Get complete match data for analysis.
-        
-        Args:
-            home_team: Home team name
-            away_team: Away team name
-            
-        Returns:
-            Complete match data dictionary
+        Get complete match data for analysis, built entirely from real
+        API-Football responses (no fabricated placeholders).
         """
         try:
             logger.info(f"Fetching match data: {home_team} vs {away_team}")
-            
-            # Get team info
+
             home_info = await self.get_team_info(home_team)
             away_info = await self.get_team_info(away_team)
-            
+
             if not home_info or not away_info:
                 logger.error("Could not find one or both teams")
                 return None
-            
-            # Get team statistics (using Premier League as default - would be dynamic in production)
-            league_id = 39  # Premier League
-            season = 2024
-            
-            home_stats = await self.get_team_statistics(home_info["id"], league_id, season)
-            away_stats = await self.get_team_statistics(away_info["id"], league_id, season)
-            
-            if not home_stats or not away_stats:
-                logger.error("Could not fetch statistics for one or both teams")
-                return None
-            
-            # Get head-to-head history
-            h2h_data = await self.get_head_to_head(home_info["id"], away_info["id"])
-            
-            # Get injuries
-            home_injuries = await self.get_injuries(home_info["id"])
-            away_injuries = await self.get_injuries(away_info["id"])
-            
-            # Build complete match data
-            match_data = {
-                # Basic info
-                "home_team": home_info["name"],
-                "away_team": away_info["name"],
-                "league_name": "Premier League",  # Would be dynamic
-                "matchday": 15,  # Would be fetched from API
-                "match_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "stadium": home_info.get("venue_name", "Estadio"),
-                "referee": "Árbitro",  # Would be fetched
-                "referee_style": "Equilibrado",
-                "total_matchdays": 38,
-                
-                # Home team stats
-                "home_formation": "4-3-3",  # Would be fetched
-                "home_position": home_stats.get("position", 10),
-                "home_points": home_stats.get("points", 0),
-                "home_form": home_stats.get("form", "DDDLW"),
-                "home_goals_for": home_stats.get("goals_for", 0),
-                "home_goals_against": home_stats.get("goals_against", 0),
-                "home_xg": home_stats.get("xg", 1.5),
-                "home_xga": home_stats.get("xga", 1.2),
-                "home_xg_last5": home_stats.get("xg_last5", 1.5),
-                "home_ppda": home_stats.get("ppda", 10),
-                "home_possession": home_stats.get("possession", 50),
-                "home_territorial_presence": home_stats.get("territorial_presence", 45),
-                "home_progressive_carries": home_stats.get("progressive_carries", 150),
-                "home_shots_on_target": home_stats.get("shots_on_target", 5),
-                "home_conversion_rate": home_stats.get("conversion_rate", 12),
-                "home_big_chances_conversion": home_stats.get("big_chances_conversion", 35),
-                "home_corners_goals": home_stats.get("corners_goals", 5),
-                "home_freekicks_goals": home_stats.get("freekicks_goals", 3),
-                "home_set_pieces_efficiency": home_stats.get("set_pieces_efficiency", "Alta"),
-                "home_gk_saves": home_stats.get("gk_saves", 50),
-                "home_shots_in_box_against": home_stats.get("shots_in_box_against", 3),
-                "home_avg_distance_km": home_stats.get("avg_distance_km", 105),
-                "home_sprints_last3": home_stats.get("sprints_last3", 450),
-                "home_rotations": home_stats.get("rotations", 3),
-                "home_rest_days": 7,  # Would be calculated
-                "home_motivation": 7,  # Would be calculated
-                "home_injuries": home_injuries,
-                
-                # Away team stats
-                "away_formation": "4-2-3-1",  # Would be fetched
-                "away_position": away_stats.get("position", 10),
-                "away_points": away_stats.get("points", 0),
-                "away_form": away_stats.get("form", "WWWDW"),
-                "away_goals_for": away_stats.get("goals_for", 0),
-                "away_goals_against": away_stats.get("goals_against", 0),
-                "away_xg": away_stats.get("xg", 1.5),
-                "away_xga": away_stats.get("xga", 1.2),
-                "away_xg_last5": away_stats.get("xg_last5", 1.5),
-                "away_ppda": away_stats.get("ppda", 10),
-                "away_possession": away_stats.get("possession", 50),
-                "away_territorial_presence": away_stats.get("territorial_presence", 45),
-                "away_progressive_carries": away_stats.get("progressive_carries", 150),
-                "away_shots_on_target": away_stats.get("shots_on_target", 5),
-                "away_conversion_rate": away_stats.get("conversion_rate", 12),
-                "away_big_chances_conversion": away_stats.get("big_chances_conversion", 35),
-                "away_corners_goals": away_stats.get("corners_goals", 5),
-                "away_freekicks_goals": away_stats.get("freekicks_goals", 3),
-                "away_set_pieces_efficiency": away_stats.get("set_pieces_efficiency", "Alta"),
-                "away_gk_saves": away_stats.get("gk_saves", 50),
-                "away_shots_in_box_against": away_stats.get("shots_in_box_against", 3),
-                "away_avg_distance_km": away_stats.get("avg_distance_km", 105),
-                "away_sprints_last3": away_stats.get("sprints_last3", 450),
-                "away_rotations": away_stats.get("rotations", 3),
-                "away_rest_days": 7,  # Would be calculated
-                "away_motivation": 7,  # Would be calculated
-                "away_injuries": away_injuries,
-                
-                # Context
-                "weather": "Despejado",
-                "pitch_condition": "Bueno",
-                "head_to_head": h2h_data,
-                "home_win_conditions": "Local fuerte en casa",
-                "away_win_conditions": "Visitante fuerte en contra",
-                "recurring_pattern": "Partidos igualados",
-            }
-            
+
+            home_league = await self.resolve_league_context(home_info["id"], home_info.get("country"))
+            away_league = await self.resolve_league_context(away_info["id"], away_info.get("country"))
+
+            home_form = await self.get_recent_form(home_info["id"])
+            away_form = await self.get_recent_form(away_info["id"])
+
+            home_standing = None
+            if home_league:
+                home_standing = await self.get_standing_for_team(
+                    home_league["league_id"], home_league["season"], home_info["id"]
+                )
+            away_standing = None
+            if away_league:
+                away_standing = await self.get_standing_for_team(
+                    away_league["league_id"], away_league["season"], away_info["id"]
+                )
+
+            h2h = await self.get_head_to_head(home_info["id"], away_info["id"])
+
+            home_season = home_league["season"] if home_league else self._current_season()
+            away_season = away_league["season"] if away_league else self._current_season()
+            home_injuries = await self.get_injuries(home_info["id"], home_season)
+            away_injuries = await self.get_injuries(away_info["id"], away_season)
+
+            match_data = build_match_data(
+                home_ref=TeamRef(id=home_info["id"], name=home_info["name"], country=home_info.get("country")),
+                away_ref=TeamRef(id=away_info["id"], name=away_info["name"], country=away_info.get("country")),
+                league_name=home_league["league_name"] if home_league else None,
+                home_form=home_form,
+                away_form=away_form,
+                h2h=h2h,
+                home_injuries=home_injuries,
+                away_injuries=away_injuries,
+                home_standing=home_standing,
+                away_standing=away_standing,
+                stadium=home_info.get("venue_name"),
+                source="api_football",
+            )
+
             logger.info(f"Match data fetched successfully for {home_team} vs {away_team}")
             return match_data
-            
+
         except Exception as e:
             logger.error(f"Error fetching match data: {e}", exc_info=True)
             return None
-    
-    async def get_head_to_head(self, home_team_id: int, away_team_id: int) -> str:
+
+    async def get_head_to_head(self, home_team_id: int, away_team_id: int, last: int = 5) -> HeadToHead:
         """
-        Get head-to-head history between two teams.
-        
-        Args:
-            home_team_id: Home team ID
-            away_team_id: Away team ID
-            
-        Returns:
-            Formatted head-to-head string
+        Get structured + formatted head-to-head history between two teams,
+        including real BTTS/over-2.5 rates derived from those same matches.
         """
         try:
             data = await self._make_request(
                 "fixtures/headtohead",
                 {"h2h": f"{home_team_id}-{away_team_id}"}
             )
-            
+
             if not data:
-                return "Sin historial reciente"
-            
-            # Get last 5 matches
-            recent_matches = data[:5] if len(data) >= 5 else data
-            
-            results = []
-            for match in recent_matches:
-                home_goals = match.get("goals", {}).get("home", 0)
-                away_goals = match.get("goals", {}).get("away", 0)
-                home_team_name = match.get("teams", {}).get("home", {}).get("name", "Local")
-                away_team_name = match.get("teams", {}).get("away", {}).get("name", "Visitante")
-                
-                results.append(f"{home_team_name} {home_goals}-{away_goals} {away_team_name}")
-            
-            return "\n".join(results)
-            
+                return HeadToHead(matches=[], summary_text="Sin historial reciente")
+
+            recent = data[:last]
+
+            matches: List[FixtureResult] = []
+            lines = []
+            btts_count = 0
+            over_2_5_count = 0
+
+            for match in recent:
+                home_goals = match.get("goals", {}).get("home") or 0
+                away_goals = match.get("goals", {}).get("away") or 0
+                home_name = match.get("teams", {}).get("home", {}).get("name", "Local")
+                away_name = match.get("teams", {}).get("away", {}).get("name", "Visitante")
+                match_home_id = match.get("teams", {}).get("home", {}).get("id")
+
+                matches.append(FixtureResult(
+                    date=match.get("fixture", {}).get("date", ""),
+                    home_name=home_name,
+                    away_name=away_name,
+                    home_goals=home_goals,
+                    away_goals=away_goals,
+                    is_home_for_ref_team=(match_home_id == home_team_id),
+                ))
+                lines.append(f"{home_name} {home_goals}-{away_goals} {away_name}")
+
+                if home_goals > 0 and away_goals > 0:
+                    btts_count += 1
+                if home_goals + away_goals > 2.5:
+                    over_2_5_count += 1
+
+            total = len(matches)
+            btts_pct = round(100 * btts_count / total, 1) if total else None
+            over_2_5_pct = round(100 * over_2_5_count / total, 1) if total else None
+
+            return HeadToHead(
+                matches=matches,
+                summary_text="\n".join(lines) if lines else "Sin historial reciente",
+                btts_pct=btts_pct,
+                over_2_5_pct=over_2_5_pct,
+            )
+
         except Exception as e:
             logger.error(f"Error getting head-to-head: {e}", exc_info=True)
-            return "Error al cargar historial"
-    
-    async def get_injuries(self, team_id: int) -> List[Dict[str, Any]]:
+            return HeadToHead(matches=[], summary_text="Error al cargar historial")
+
+    async def get_injuries(self, team_id: int, season: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Get current injuries for a team.
-        
+
         Args:
             team_id: Team ID
-            
+            season: Season year (defaults to the current season)
+
         Returns:
             List of injury dictionaries
         """
         try:
-            # Get current season
-            current_year = datetime.now().year
-            current_month = datetime.now().month
-            season = current_year if current_month >= 8 else current_year - 1
-            
+            season = season if season is not None else self._current_season()
+
             data = await self._make_request(
                 "injuries",
                 {
@@ -390,16 +396,15 @@ class StatsFetcher:
                     "season": season
                 }
             )
-            
+
             if not data:
                 return []
-            
-            # Filter current injuries (not recovered)
+
             injuries = []
             for injury_data in data[:5]:  # Top 5 injuries
                 injury = injury_data.get("injury", {})
                 player = injury_data.get("player", {})
-                
+
                 injuries.append({
                     "player": player.get("name", "Unknown"),
                     "position": player.get("position", ""),
@@ -409,64 +414,35 @@ class StatsFetcher:
                     "is_key_player": self._is_key_player(player.get("name", "")),
                     "impact": self._assess_injury_impact(player.get("position", ""))
                 })
-            
+
             return injuries
-            
+
         except Exception as e:
             logger.error(f"Error getting injuries for team {team_id}: {e}", exc_info=True)
             return []
-    
+
     def _is_key_player(self, player_name: str) -> bool:
         """Determine if a player is a key player (simplified)."""
         # In production, this would use a database of key players
         key_players_keywords = ["messi", "ronaldo", "mbappé", "haaland", "de bruyne", "mbappe"]
         return any(keyword in player_name.lower() for keyword in key_players_keywords)
-    
+
     def _assess_injury_impact(self, position: str) -> str:
         """Assess impact of injury based on position."""
         key_positions = ["Goalkeeper", "Center-Back", "Striker", "Attacking Midfielder"]
-        
+
         if any(pos in position for pos in key_positions):
             return "Alto"
         else:
             return "Medio"
-    
-    def _calculate_conversion_rate(self, goals: int, shots: int) -> float:
-        """Calculate conversion rate percentage."""
-        if shots == 0:
-            return 0.0
-        return round((goals / shots) * 100, 1)
-    
-    def _calculate_big_chances_conversion(self, scored: int, missed: int) -> float:
-        """Calculate big chances conversion percentage."""
-        total = scored + missed
-        if total == 0:
-            return 0.0
-        return round((scored / total) * 100, 1)
-    
-    def _assess_set_pieces_efficiency(self, set_pieces: Dict) -> str:
-        """Assess set pieces efficiency."""
-        corners_goals = set_pieces.get("corners", {}).get("goals", 0)
-        freekicks_goals = set_pieces.get("freekicks", {}).get("goals", 0)
-        
-        total = corners_goals + freekicks_goals
-        
-        if total >= 10:
-            return "Muy Alta"
-        elif total >= 7:
-            return "Alta"
-        elif total >= 4:
-            return "Media"
-        else:
-            return "Baja"
-    
+
     async def get_live_matches(self, league_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Get live matches (for real-time tracking).
-        
+
         Args:
             league_id: Optional league ID filter
-            
+
         Returns:
             List of live matches
         """
@@ -474,12 +450,12 @@ class StatsFetcher:
             params = {"live": "all"}
             if league_id:
                 params["league"] = league_id
-            
+
             data = await self._make_request("fixtures", params)
-            
+
             if not data:
                 return []
-            
+
             matches = []
             for fixture in data:
                 match = {
@@ -491,34 +467,35 @@ class StatsFetcher:
                     "status": fixture.get("fixture", {}).get("status", {}).get("short"),
                 }
                 matches.append(match)
-            
+
             return matches
-            
+
         except Exception as e:
             logger.error(f"Error getting live matches: {e}", exc_info=True)
             return []
-    
-    async def get_league_table(self, league_id: int, season: int = 2024) -> List[Dict[str, Any]]:
+
+    async def get_league_table(self, league_id: int, season: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Get league standings.
-        
+
         Args:
             league_id: League ID
-            season: Season year
-            
+            season: Season year (defaults to the current season)
+
         Returns:
             List of teams with standings
         """
         try:
+            season = season if season is not None else self._current_season()
+
             data = await self._make_request(
                 "standings",
                 {"league": league_id, "season": season}
             )
-            
+
             if not data:
                 return []
-            
-            # Extract standings
+
             standings = []
             for team_data in data[0].get("league", {}).get("standings", [{}])[0].get("all", []):
                 team = team_data.get("team", {})
@@ -527,24 +504,24 @@ class StatsFetcher:
                     "team_id": team.get("id"),
                     "team_name": team.get("name"),
                     "points": team_data.get("points"),
-                    "played": team_data.get("all", {}).get("matchsPlayed", 0),
+                    "played": team_data.get("all", {}).get("played", 0),
                     "won": team_data.get("all", {}).get("win", 0),
                     "drawn": team_data.get("all", {}).get("draw", 0),
                     "lost": team_data.get("all", {}).get("lose", 0),
                     "goals_for": team_data.get("all", {}).get("goals", {}).get("for", 0),
                     "goals_against": team_data.get("all", {}).get("goals", {}).get("against", 0),
                 })
-            
+
             return standings
-            
+
         except Exception as e:
             logger.error(f"Error getting league table: {e}", exc_info=True)
             return []
-    
+
     async def health_check(self) -> bool:
         """
         Check if API-Football is accessible.
-        
+
         Returns:
             True if API is working, False otherwise
         """

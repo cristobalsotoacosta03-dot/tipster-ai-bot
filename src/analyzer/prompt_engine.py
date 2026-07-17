@@ -1,7 +1,8 @@
 """
 Advanced Prompt Engine for football match analysis.
-Generates sophisticated prompts that emphasize tactical variables,
-physical metrics, and real game-changing factors.
+Builds prompts from real data (fixtures, standings, head-to-head, injuries)
+and is explicit with Claude/the user when a metric isn't available, instead
+of substituting a plausible-looking fabricated number.
 """
 from typing import Dict, Any, List, Optional
 from string import Template
@@ -11,19 +12,21 @@ from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+NOT_AVAILABLE = "No disponible (dato no proporcionado por el plan gratuito de datos)"
+
 
 class PromptEngine:
     """
     Advanced prompt generation system for football analysis.
-    Focuses on tactical variables, physical metrics, and contextual factors
-    that truly impact match outcomes.
+    Focuses on the tactical/physical/statistical signals we can actually
+    back with real match data, and says so plainly when a signal is missing.
     """
-    
+
     def __init__(self):
         """Initialize prompt engine with templates."""
         self.templates = self._load_templates()
         logger.info("Prompt Engine initialized with tactical focus")
-    
+
     def _load_templates(self) -> Dict[str, Template]:
         """Load all prompt templates."""
         return {
@@ -31,7 +34,7 @@ class PromptEngine:
             "express": Template(self._get_express_template()),
             "premium": Template(self._get_premium_template()),
         }
-    
+
     def _get_full_analysis_template(self) -> str:
         """
         Full analysis template with deep tactical focus.
@@ -42,26 +45,19 @@ class PromptEngine:
 ## 🧠 CONTEXTO ESTRATÉGICO
 
 **Partido:** $home_team vs $away_team
-**Competición:** $league_name - Jornada $matchday
-**Fecha:** $match_date | **Estadio:** $stadium
-**Árbitro:** $referee (estilo: $referee_style)
+**Competición:** $league_name
 
 **Momento de la temporada:**
-- Jornada $matchday de $total_matchdays
-- Posición $home_team: $home_position° ($home_points pts)
-- Posición $away_team: $away_position° ($away_points pts)
-- Motivación: $motivation_home / $motivation_away (escala 1-10)
+- Posición $home_team: $home_position° ($home_points pts, $home_played PJ)
+- Posición $away_team: $away_position° ($away_points pts, $away_played PJ)
 
 ---
 
-## ⚽ ANÁLISIS TÁCTICO PROFUNDO
+## ⚽ FORMA REAL Y RENDIMIENTO RECIENTE
 
-### $home_team - Sistema de Juego
-**Formación base:** $home_formation
-**Estilo de juego:** $home_play_style
-**Pressing:** $home_pressing_intensity (PPDA: $home_ppda)
-**Bloque defensivo:** $home_defensive_block
-**Transiciones:** $home_transitions
+### $home_team
+**Forma últimos partidos:** $home_form
+**Goles a favor / en contra (últimos partidos):** $home_goals_for / $home_goals_against ($home_avg_goals_for de media a favor, $home_avg_goals_against en contra)
 
 **Puntos fuertes detectables:**
 $home_strengths
@@ -69,14 +65,9 @@ $home_strengths
 **Puntos débiles explotables:**
 $home_weaknesses
 
-**Clave táctica:** $home_tactical_key
-
-### $away_team - Sistema de Juego
-**Formación base:** $away_formation
-**Estilo de juego:** $away_play_style
-**Pressing:** $away_pressing_intensity (PPDA: $away_ppda)
-**Bloque defensivo:** $away_defensive_block
-**Transiciones:** $away_transitions
+### $away_team
+**Forma últimos partidos:** $away_form
+**Goles a favor / en contra (últimos partidos):** $away_goals_for / $away_goals_against ($away_avg_goals_for de media a favor, $away_avg_goals_against en contra)
 
 **Puntos fuertes detectables:**
 $away_strengths
@@ -84,61 +75,18 @@ $away_strengths
 **Puntos débiles explotables:**
 $away_weaknesses
 
-**Clave táctica:** $away_tactical_key
-
 ---
 
-## 📊 MÉTRICAS AVANZADAS (QUE IMPORTAN)
+## 📊 MÉTRICAS AVANZADAS
 
-### Presión y Dominio
-- **PPDA (Pases por acción defensiva):** $home_ppda vs $away_ppda
-  - *Menor PPDA = pressing más intenso*
-  - *Diferencia >5 indica ventaja clara en recuperación*
-  
-- **Posesión en campo rival:** $home_territorial_presence% vs $away_territorial_presence%
-  - *Indica capacidad de imponer juego*
+*Nota: xG, PPDA, posesión y métricas físicas no están disponibles en el plan gratuito de datos actual y no se incluyen para no inventar cifras.*
 
-- **Progresión ofensiva:** $home_progressive_carries vs $away_progressive_carries
-  - *Mide capacidad de generar peligro desde atrás*
+### Diferencial ofensivo (basado en goles reales)
+$goal_differential_analysis
 
-### Eficiencia y Peligro
-- **xG (Expected Goals):** $home_xg vs $away_xg
-  - *Últimos 5 partidos: $home_xg_last5 vs $away_xg_last5*
-  - *Tendencia: $xg_trend*
-  
-- **Tiros a puerta/partido:** $home_shots_on_target vs $away_shots_on_target
-  - *Calidad de finalización*
-
-- **Conversión de grandes ocasiones:** $home_big_chances_conversion% vs $away_big_chances_conversion%
-  - *Crucial para pronósticos de goles*
-
-### Solidez Defensiva
-- **xGA (Expected Goals Against):** $home_xga vs $away_xga
-  - *Menor xGA = defensa más sólida*
-  
-- **Tiros recibidos dentro del área:** $home_shots_in_box_against vs $away_shots_in_box_against
-  - *Indica vulnerabilidad defensiva*
-
-- **Paradas del portero:** $home_gk_saves vs $away_gk_saves
-  - *Efectividad del guardameta*
-
-### Fatiga y Desgaste Físico (CRÍTICO)
-- **Distancia promedio recorrida:** $home_avg_distance_km vs $away_avg_distance_km
-  - *Indica intensidad física del equipo*
-  
-- **Sprint count últimos 3 partidos:** $home_sprints_last3 vs $away_sprints_last3
-  - *Fatiga acumulada*
-
-- **Rotaciones probables:** $home_rotations vs $away_rotations
-  - *Impacto directo en rendimiento*
-
-- **Días de descanso:** $home_rest_days vs $away_rest_days
+### Fatiga y Descanso
+- **Días de descanso reales:** $home_rest_days vs $away_rest_days
   - *Ventaja/desventaja física*
-
-### Set Pieces (Decisivos en partidos igualados)
-- **Goles de corners:** $home_corners_goals vs $away_corners_goals
-- **Goles de faltas:** $home_freekicks_goals vs $away_freekicks_goals
-- **Efectividad ofensiva:** $home_set_pieces_efficiency vs $away_set_pieces_efficiency
 
 ---
 
@@ -154,27 +102,19 @@ $away_injuries_analysis
 **Análisis de impacto:**
 - Jugadores clave fuera: $key_players_out
 - Nivel de impacto: $injury_impact_level (Alto/Medio/Bajo)
-- Sustitutos disponibles: $available_replacements
 
-### Contexto Ambiental
-- **Clima:** $weather_conditions
-  - Impacto: $weather_impact
-- **Estado del césped:** $pitch_condition
-- **Presión de la afición:** $crowd_pressure
-- **Viaje:** $travel_fatigue
+---
 
-### Momentos Clave del Partido
-- **Minutos 60-75:** $critical_period_analysis
-  - *Zona donde se deciden muchos partidos por fatiga*
-- **Goles tempraneros:** $early_goal_tendency
-  - *Equipos que encajan temprano: $early_goal_vulnerability*
+## 💰 MERCADO DE CUOTAS (Datos Reales)
+
+$market_odds_summary
 
 ---
 
 ## 🎯 CONFRONTACIÓN DIRECTA
 
 ### Historial Reciente
-**Últimos 5 enfrentamientos:**
+**Últimos enfrentamientos:**
 $head_to_head
 
 **Patrones identificados:**
@@ -182,70 +122,31 @@ $head_to_head
 - $away_team gana cuando: $away_win_conditions
 - Patrón recurrente: $recurring_pattern
 
-### Estadísticas Cara a Cara
-- **Posesión promedio:** $avg_possession_home% vs $avg_possession_away%
-- **Tiros totales:** $avg_shots_home vs $avg_shots_away
-- **Eficiencia:** $avg_xg_home vs $avg_xg_away
-
 ---
 
 ## 📋 INSTRUCCIONES DE ANÁLISIS
 
-### 1. ANÁLISIS TÁCTICO (Obligatorio - Profundidad Máxima)
-Analiza CÓMO se enfrentan los estilos de juego:
+### 1. ANÁLISIS DE FORMA Y RENDIMIENTO (Obligatorio)
+Analiza la forma reciente real de ambos equipos (resultados y goles, no estadísticas inventadas):
 
-- **¿Quién impondrá su pressing?** 
-  - Analiza PPDA y capacidad de recuperación en campo rival
-  - Identifica qué equipo puede dominar la zona de creación
-  
-- **¿Cómo se construirán los ataques?**
-  - ¿Por bandas o por centro?
-  - ¿Transiciones rápidas o posesión larga?
-  - ¿Qué equipo domina la progresión ofensiva?
-  
+- **¿Quién llega en mejor momento?**
+  - Compara forma reciente y balance de goles
 - **¿Dónde se decidirá el partido?**
-  - Zona de creación de juego
-  - Espacios entre líneas
-  - Juego aéreo vs juego por tierra
+  - Con los datos disponibles, ¿hay una ventaja ofensiva o defensiva clara?
+- **Ventaja detectable:** $tactical_advantage
 
-- **Ventaja táctica clara:** $tactical_advantage
-
-### 2. ANÁLISIS FÍSICO (Obligatorio - Factor Decisivo)
-El fútbol moderno se gana en el minuto 80, no en el 1:
-
-- **¿Quién llega más fresco físicamente?**
-  - Compara días de descanso
-  - Analiza rotaciones y carga de minutos
-  - Evalúa sprint count y desgaste acumulado
-  
-- **¿Afectará la fatiga al resultado?**
-  - ¿Algún equipo con partido europeo reciente?
-  - ¿Rotaciones probables en mediocampo?
-  - Impacto en minutos 60-80
-
+### 2. ANÁLISIS FÍSICO (Obligatorio, con los datos disponibles)
+- **¿Quién llega más fresco?** Compara días de descanso reales.
 - **Ventaja física:** $physical_advantage
 
-### 3. ANÁLISIS ESTADÍSTICO (Obligatorio - Datos Relevantes)
-NO repitas números, INTERPRETA su significado:
-
-- **xG diferencial:** $xg_differential
-  - *¿Quién genera más peligro real?*
-  
-- **Eficiencia ofensiva vs defensiva:**
-  - $home_team convierte $home_conversion_rate% de sus xG
-  - $away_team convierte $away_conversion_rate% de sus xG
-  - *¿Hay sobre/underperformance?*
-
-- **Set pieces como factor:**
-  - ¿Algún equipo depende de corners/faltas?
-  - ¿Hay ventaja clara en juego aéreo?
-
-### 4. FACTORES PSICOLÓGICOS (Obligatorio)
-- **Presión:** $pressure_analysis
-- **Motivación extra:** $motivation_factors
+### 3. FACTORES DE LESIONES (Obligatorio)
 - **Historial reciente:** $recent_form_impact
 
-### 5. PRONÓSTICO (Obligatorio - Con Justificación Técnica)
+### 4. PRONÓSTICO (Obligatorio - Con Justificación Técnica)
+
+Si hay cuotas de mercado reales disponibles arriba, compara tu propia estimación con la
+probabilidad implícita del mercado y dilo explícitamente (¿hay valor aparente o el mercado ya
+lo refleja?). Si no hay cuotas disponibles, no asumas ninguna.
 
 **Mercado recomendado:** $recommended_market
 
@@ -253,7 +154,7 @@ NO repitas números, INTERPRETA su significado:
 
 **Nivel de confianza:** $confidence_level%
 
-**Justificación técnica (OBLIGATORIA):**
+**Justificación técnica (OBLIGATORIA, basada solo en datos reales):**
 $technical_justification
 
 **Factores clave que soportan el pronóstico:**
@@ -264,10 +165,8 @@ $technical_justification
 **Factores de riesgo:**
 $risk_factors
 
-### 6. ALTERNATIVAS (Opcional pero Valioso)
+### 5. ALTERNATIVAS (Opcional pero Valioso)
 - Mercado secundario: $alternative_market_1
-- Combinada sugerida: $suggested_combination (si aplica)
-- Por qué NO recomiendo otros mercados: $market_rejections
 
 ---
 
@@ -275,7 +174,7 @@ $risk_factors
 
 1. **NO hagas predicciones basadas en estadísticas vacías** - Interpreta el contexto
 2. **SIEMPRE justifica técnicamente** - Cada pronóstico necesita argumentos sólidos
-3. **PRIORIZA variables tácticas y físicas** - Son las que deciden partidos
+3. **Si un dato dice "No disponible", NO lo inventes ni lo asumas** - trabaja solo con lo que hay
 4. **Si no hay valor claro, DILO** - Mejor no analizar que dar pronósticos sin fundamento
 5. **TRANSPARENCIA total** - Muestra tu nivel de confianza real
 
@@ -284,8 +183,8 @@ $risk_factors
 ## 📊 RESUMEN EJECUTIVO (Para el usuario)
 
 ### 🎯 Pronóstico Principal
-**Mercado:** $recommended_market  
-**Stake:** $stake/5 unidades  
+**Mercado:** $recommended_market
+**Stake:** $stake/5 unidades
 **Confianza:** $confidence_level%
 
 ### 💡 Por qué este pronóstico
@@ -294,12 +193,9 @@ $executive_summary
 ### ⚠️ Riesgo principal
 $main_risk
 
-### 🔄 Alternativa a considerar
-$alternative
-
 ---
 
-**Recuerda:** Estás analizando para apostadores serios que buscan valor a largo plazo, no para espectadores que quieren emoción. Tu análisis debe reflejar profesionalismo, profundidad táctica y rigor estadístico."""
+**Recuerda:** Estás analizando para apostadores serios que buscan valor a largo plazo, no para espectadores que quieren emoción. Tu análisis debe reflejar profesionalismo y rigor, basado únicamente en datos reales disponibles."""
 
     def _get_express_template(self) -> str:
         """
@@ -308,42 +204,48 @@ $alternative
         """
         return """⚡ ANÁLISIS RÁPIDO: $home_team vs $away_team
 
-**Contexto:** $league_name - Jornada $matchday
+**Contexto:** $league_name
 
-**Ventaja táctica:** $tactical_advantage
+**Ventaja detectable:** $tactical_advantage
 **Ventaja física:** $physical_advantage
 
-**Métricas clave:**
-- xG: $home_xg vs $away_xg (diferencial: $xg_differential)
-- PPDA: $home_ppda vs $away_ppda
-- Fatiga: $fatigue_advantage
+**Forma reciente:**
+- $home_team: $home_form (GF $home_goals_for / GC $home_goals_against)
+- $away_team: $away_form (GF $away_goals_for / GC $away_goals_against)
+
+**Fatiga:** $fatigue_advantage
+
+**Mercado:** $market_odds_summary
 
 **Factor decisivo:** $decisive_factor
 
-**Pronóstico:** $prediction
+**Pronóstico:** $recommended_market
 **Stake:** $stake/5
 **Confianza:** $confidence_level%
 
-$brief_justification"""
+$technical_justification"""
 
     def _get_premium_template(self) -> str:
         """
         Premium analysis template for VIP users.
-        Maximum depth with advanced metrics.
+        Maximum depth with the real signals available.
         """
         return """# 🔍 ANÁLISIS PREMIUM: $home_team vs $away_team
 
 ## 📊 Contexto Estratégico
 $strategic_context
 
-## 🧠 Análisis Táctico-Profesional
+## 🧠 Análisis de Forma y Rendimiento
 $deep_tactical_analysis
 
 ## 💪 Análisis Físico y Fatiga
 $physical_analysis
 
-## 📈 Métricas Avanzadas Interpretadas
+## 📈 Métricas Reales Interpretadas
 $advanced_metrics_analysis
+
+## 💰 Mercado de Cuotas (Datos Reales)
+$market_odds_summary
 
 ## ⚠️ Factores de Riesgo Detallados
 $detailed_risk_analysis
@@ -355,85 +257,47 @@ $value_identification
 **Mercado:** $recommended_market
 **Stake:** $stake/5 unidades
 **Confianza:** $confidence_level%
-**Probabilidad real estimada:** $estimated_probability%
-**Probabilidad implícita:** $implied_probability%
-**Value:** $value_assessment
 
 ## 📋 Justificación Técnica Completa
 $full_technical_justification
 
-## 🔄 Alternativas y Combinadas
-$alternatives_and_combinations
-
-## 📊 Seguimiento en Vivo
-$live_tracking_indicators"""
+## 🔄 Alternativas
+$alternatives_and_combinations"""
 
     def generate_full_analysis_prompt(self, match_data: Dict[str, Any]) -> str:
-        """
-        Generate complete analysis prompt with all tactical variables.
-        
-        Args:
-            match_data: Complete match data dictionary
-            
-        Returns:
-            Formatted prompt string
-        """
+        """Generate complete analysis prompt with all available real signals."""
         try:
-            # Enrich match data with tactical analysis
             enriched_data = self._enrich_with_tactical_analysis(match_data)
-            
-            # Generate prompt from template
             prompt = self.templates["full_analysis"].safe_substitute(**enriched_data)
-            
             logger.info(f"Generated full analysis prompt ({len(prompt)} chars)")
             return prompt
-            
         except Exception as e:
             logger.error(f"Error generating full analysis prompt: {e}", exc_info=True)
             raise
-    
+
     def generate_express_prompt(self, match_data: Dict[str, Any]) -> str:
-        """
-        Generate express analysis prompt for quick tips.
-        
-        Args:
-            match_data: Match data dictionary
-            
-        Returns:
-            Formatted prompt string
-        """
+        """Generate express analysis prompt for quick tips."""
         try:
             enriched_data = self._enrich_with_tactical_analysis(match_data)
             prompt = self.templates["express"].safe_substitute(**enriched_data)
-            
             logger.info(f"Generated express prompt ({len(prompt)} chars)")
             return prompt
-            
         except Exception as e:
             logger.error(f"Error generating express prompt: {e}", exc_info=True)
             raise
-    
+
     def generate_premium_prompt(self, match_data: Dict[str, Any]) -> str:
-        """
-        Generate premium analysis prompt for VIP users.
-        
-        Args:
-            match_data: Complete match data dictionary
-            
-        Returns:
-            Formatted prompt string
-        """
+        """Generate premium analysis prompt for VIP users."""
         try:
             enriched_data = self._enrich_with_tactical_analysis(match_data)
+            enriched_data.update(self._build_premium_sections(enriched_data))
             prompt = self.templates["premium"].safe_substitute(**enriched_data)
-            
             logger.info(f"Generated premium prompt ({len(prompt)} chars)")
             return prompt
-            
         except Exception as e:
             logger.error(f"Error generating premium prompt: {e}", exc_info=True)
             raise
-    
+
     def calculate_confidence(self, match_data: Dict[str, Any]) -> int:
         """Public wrapper: confidence level (0-100) for a given match, so
         callers outside the prompt (e.g. the Telegram formatter) can render
@@ -444,96 +308,61 @@ $live_tracking_indicators"""
         """Public wrapper: recommended stake (1-5 units) for a given match."""
         return self._calculate_stake(match_data)
 
+    # ==================== ENRICHMENT ====================
+
+    def _num_or_na(self, value: Any) -> Any:
+        """Sanitize a possibly-missing numeric field for template substitution
+        so we never leak a Python `None` or a raw `$placeholder` into the text
+        sent to Claude/the user."""
+        return value if value is not None else "N/D"
+
     def _enrich_with_tactical_analysis(self, match_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Enrich match data with tactical analysis and derived metrics.
-        This is where the magic happens - we calculate the variables that matter.
-        
-        Args:
-            match_data: Raw match data
-            
-        Returns:
-            Enriched data with tactical variables
+        Enrich match data with derived analysis text. Every derived value is
+        computed from real fields in `match_data`; when the underlying real
+        field is missing, the derived text says so instead of guessing.
         """
         enriched = match_data.copy()
-        
-        # Calculate tactical advantages
+
+        for key in (
+            "home_position", "home_points", "home_played",
+            "away_position", "away_points", "away_played",
+            "home_rest_days", "away_rest_days",
+            "home_avg_goals_for", "home_avg_goals_against",
+            "away_avg_goals_for", "away_avg_goals_against",
+        ):
+            enriched[key] = self._num_or_na(match_data.get(key))
+
+        enriched["league_name"] = match_data.get("league_name") or "Liga no identificada"
+
+        h2h = match_data.get("h2h_structured") or {}
+
         enriched.update({
-            # Tactical analysis
-            "home_formation": match_data.get("home_formation", "4-3-3"),
-            "away_formation": match_data.get("away_formation", "4-3-3"),
-            "home_play_style": self._determine_play_style(match_data, "home"),
-            "away_play_style": self._determine_play_style(match_data, "away"),
-            "home_pressing_intensity": self._calculate_pressing_intensity(match_data, "home"),
-            "away_pressing_intensity": self._calculate_pressing_intensity(match_data, "away"),
-            "home_defensive_block": self._determine_defensive_block(match_data, "home"),
-            "away_defensive_block": self._determine_defensive_block(match_data, "away"),
-            "home_transitions": self._analyze_transitions(match_data, "home"),
-            "away_transitions": self._analyze_transitions(match_data, "away"),
-            
-            # Strengths and weaknesses
+            # Strengths/weaknesses from real form
             "home_strengths": self._identify_strengths(match_data, "home"),
             "home_weaknesses": self._identify_weaknesses(match_data, "home"),
             "away_strengths": self._identify_strengths(match_data, "away"),
             "away_weaknesses": self._identify_weaknesses(match_data, "away"),
-            "home_tactical_key": self._identify_tactical_key(match_data, "home"),
-            "away_tactical_key": self._identify_tactical_key(match_data, "away"),
-            
-            # Physical metrics (CRITICAL)
-            "home_rest_days": match_data.get("home_rest_days", 7),
-            "away_rest_days": match_data.get("away_rest_days", 7),
-            "home_avg_distance_km": match_data.get("home_avg_distance_km", 105),
-            "away_avg_distance_km": match_data.get("away_avg_distance_km", 105),
-            "home_sprints_last3": match_data.get("home_sprints_last3", 450),
-            "away_sprints_last3": match_data.get("away_sprints_last3", 450),
-            "home_rotations": match_data.get("home_rotations", 3),
-            "away_rotations": match_data.get("away_rotations", 3),
+
+            "goal_differential_analysis": self._goal_differential_analysis(match_data),
+            "market_odds_summary": self._market_odds_summary(match_data),
             "fatigue_advantage": self._calculate_fatigue_advantage(match_data),
-            
-            # Advanced metrics
-            "xg_differential": self._calculate_xg_differential(match_data),
-            "home_conversion_rate": match_data.get("home_conversion_rate", 12),
-            "away_conversion_rate": match_data.get("away_conversion_rate", 12),
-            "home_big_chances_conversion": match_data.get("home_big_chances_conversion", 35),
-            "away_big_chances_conversion": match_data.get("away_big_chances_conversion", 35),
-            
-            # Set pieces
-            "home_corners_goals": match_data.get("home_corners_goals", 5),
-            "away_corners_goals": match_data.get("away_corners_goals", 5),
-            "home_set_pieces_efficiency": match_data.get("home_set_pieces_efficiency", "Alta"),
-            "away_set_pieces_efficiency": match_data.get("away_set_pieces_efficiency", "Alta"),
-            
-            # Tactical advantages
             "tactical_advantage": self._determine_tactical_advantage(match_data),
-            "physical_advantage": self._determine_physical_advantage(match_data),
-            "xg_trend": self._analyze_xg_trend(match_data),
-            
-            # Context
-            "referee_style": match_data.get("referee_style", "Equilibrado"),
-            "weather_conditions": match_data.get("weather", "Despejado"),
-            "weather_impact": self._assess_weather_impact(match_data),
-            "pitch_condition": match_data.get("pitch_condition", "Bueno"),
-            "crowd_pressure": self._assess_crowd_pressure(match_data),
-            "travel_fatigue": self._assess_travel_fatigue(match_data),
-            
-            # Motivation
-            "motivation_home": match_data.get("home_motivation", 7),
-            "motivation_away": match_data.get("away_motivation", 7),
-            "motivation_factors": self._analyze_motivation(match_data),
-            
-            # Decisive factors
+            "physical_advantage": self._calculate_fatigue_advantage(match_data),
             "decisive_factor": self._identify_decisive_factor(match_data),
-            "critical_period_analysis": self._analyze_critical_period(match_data),
-            "early_goal_tendency": self._analyze_early_goals(match_data),
-            "early_goal_vulnerability": self._identify_early_goal_vulnerability(match_data),
-            
+            "recent_form_impact": self._recent_form_impact(match_data),
+
+            # Head-to-head derived text
+            "home_win_conditions": self._win_conditions(h2h, match_data.get("home_team", "Local"), for_home=True),
+            "away_win_conditions": self._win_conditions(h2h, match_data.get("away_team", "Visitante"), for_home=False),
+            "recurring_pattern": self._recurring_pattern(h2h),
+
             # Injuries
             "home_injuries_analysis": self._analyze_injuries(match_data, "home"),
             "away_injuries_analysis": self._analyze_injuries(match_data, "away"),
             "key_players_out": self._identify_key_players_out(match_data),
             "injury_impact_level": self._assess_injury_impact(match_data),
-            "available_replacements": self._assess_replacements(match_data),
-            
+
             # Prediction
             "recommended_market": self._recommend_market(match_data),
             "stake": self._calculate_stake(match_data),
@@ -543,334 +372,263 @@ $live_tracking_indicators"""
             "factor_1": "",
             "factor_2": "",
             "factor_3": "",
-            "alternative_market_1": "",
-            "suggested_combination": "",
-            "market_rejections": "",
-            
+            "alternative_market_1": self._alternative_market(match_data),
+
             # Summary
             "executive_summary": "",
             "main_risk": "",
-            "alternative": "",
         })
-        
-        # Generate dynamic factors
-        enriched = self._generate_dynamic_factors(enriched)
-        
+
+        enriched = self._generate_dynamic_factors(enriched, match_data)
+
         return enriched
-    
-    # ==================== TACTICAL ANALYSIS METHODS ====================
-    
-    def _determine_play_style(self, match_data: Dict, team: str) -> str:
-        """Determine team's play style based on metrics."""
-        possession = match_data.get(f"{team}_possession", 50)
-        ppda = match_data.get(f"{team}_ppda", 10)
-        
-        if possession > 55 and ppda < 10:
-            return "Posesión y pressing alto (estilo Guardiola)"
-        elif possession < 45 and ppda > 12:
-            return "Contragolpe y bloque bajo (estilo Simeone)"
-        elif ppda < 10:
-            return "Pressing intensivo y transiciones rápidas"
-        else:
-            return "Posesión controlada y construcción paciente"
-    
-    def _calculate_pressing_intensity(self, match_data: Dict, team: str) -> str:
-        """Calculate pressing intensity description."""
-        ppda = match_data.get(f"{team}_ppda", 10)
-        
-        if ppda < 8:
-            return "Muy alto (género Klopp)"
-        elif ppda < 10:
-            return "Alto (pressing organizado)"
-        elif ppda < 12:
-            return "Medio (pressing selectivo)"
-        else:
-            return "Bajo (bloque defensivo)"
-    
-    def _determine_defensive_block(self, match_data: Dict, team: str) -> str:
-        """Determine defensive block style."""
-        xga = match_data.get(f"{team}_xga", 1.2)
-        
-        if xga < 1.0:
-            return "Bloque muy bajo y compacto"
-        elif xga < 1.3:
-            return "Bloque medio-bajo"
-        else:
-            return "Bloque alto (riesgo de espacios)"
-    
-    def _analyze_transitions(self, match_data: Dict, team: str) -> str:
-        """Analyze team's transition play."""
-        progressive_carries = match_data.get(f"{team}_progressive_carries", 150)
-        
-        if progressive_carries > 200:
-            return "Transiciones muy rápidas (estilo contraataque)"
-        elif progressive_carries > 150:
-            return "Transiciones organizadas"
-        else:
-            return "Transiciones lentas (posesión larga)"
-    
+
+    def _build_premium_sections(self, enriched: Dict[str, Any]) -> Dict[str, str]:
+        """Map already-derived signals onto the premium template's broader
+        narrative sections instead of leaving them unset (the previous
+        version of this template never filled these placeholders at all)."""
+        home = enriched.get("home_team", "Local")
+        away = enriched.get("away_team", "Visitante")
+
+        strategic_context = (
+            f"{home}: {enriched.get('home_position')}º con {enriched.get('home_points')} pts "
+            f"({enriched.get('home_played')} PJ)\n"
+            f"{away}: {enriched.get('away_position')}º con {enriched.get('away_points')} pts "
+            f"({enriched.get('away_played')} PJ)"
+        )
+
+        deep_tactical_analysis = (
+            f"{home} - Fortalezas:\n{enriched.get('home_strengths')}\n"
+            f"{home} - Debilidades:\n{enriched.get('home_weaknesses')}\n\n"
+            f"{away} - Fortalezas:\n{enriched.get('away_strengths')}\n"
+            f"{away} - Debilidades:\n{enriched.get('away_weaknesses')}"
+        )
+
+        value_identification = (
+            f"Confianza del modelo: {enriched.get('confidence_level')}%. "
+            "Este nivel refleja únicamente los datos reales disponibles "
+            "(forma, descanso, lesiones, historial directo); no incorpora "
+            "métricas avanzadas no disponibles en el plan gratuito."
+        )
+
+        return {
+            "strategic_context": strategic_context,
+            "deep_tactical_analysis": deep_tactical_analysis,
+            "physical_analysis": enriched.get("physical_advantage", NOT_AVAILABLE),
+            "advanced_metrics_analysis": enriched.get("goal_differential_analysis", NOT_AVAILABLE),
+            "detailed_risk_analysis": enriched.get("risk_factors", NOT_AVAILABLE),
+            "value_identification": value_identification,
+            "full_technical_justification": enriched.get("technical_justification", NOT_AVAILABLE),
+            "alternatives_and_combinations": enriched.get("alternative_market_1", NOT_AVAILABLE),
+        }
+
+    # ==================== FORM / STRENGTHS ANALYSIS ====================
+
     def _identify_strengths(self, match_data: Dict, team: str) -> str:
-        """Identify team's key strengths."""
+        """Identify team's strengths from real recent form."""
+        avg_gf = match_data.get(f"{team}_avg_goals_for")
+        avg_ga = match_data.get(f"{team}_avg_goals_against")
+        form = match_data.get(f"{team}_form", "")
+
         strengths = []
-        
-        xg = match_data.get(f"{team}_xg", 1.5)
-        xga = match_data.get(f"{team}_xga", 1.2)
-        ppda = match_data.get(f"{team}_ppda", 10)
-        
-        if xg > 1.8:
-            strengths.append("• Ataque potente (xG > 1.8)")
-        if xga < 1.0:
-            strengths.append("• Defensa sólida (xGA < 1.0)")
-        if ppda < 9:
-            strengths.append("• Pressing intensivo efectivo")
-        
-        return "\n".join(strengths) if strengths else "• Rendimiento equilibrado"
-    
+        if avg_gf is not None and avg_gf >= 1.8:
+            strengths.append(f"• Ataque productivo ({avg_gf} goles/partido de media reciente)")
+        if avg_ga is not None and avg_ga <= 0.8:
+            strengths.append(f"• Defensa sólida ({avg_ga} goles encajados/partido de media reciente)")
+        if form.count("W") >= 3:
+            strengths.append(f"• Buena racha de resultados ({form})")
+
+        return "\n".join(strengths) if strengths else "• Sin fortalezas destacadas en los datos disponibles"
+
     def _identify_weaknesses(self, match_data: Dict, team: str) -> str:
-        """Identify team's exploitable weaknesses."""
+        """Identify team's exploitable weaknesses from real recent form."""
+        avg_gf = match_data.get(f"{team}_avg_goals_for")
+        avg_ga = match_data.get(f"{team}_avg_goals_against")
+        form = match_data.get(f"{team}_form", "")
+
         weaknesses = []
-        
-        xg = match_data.get(f"{team}_xg", 1.5)
-        xga = match_data.get(f"{team}_xga", 1.2)
-        ppda = match_data.get(f"{team}_ppda", 10)
-        
-        if xg < 1.2:
-            weaknesses.append("• Ataque poco efectivo (xG < 1.2)")
-        if xga > 1.5:
-            weaknesses.append("• Defensa vulnerable (xGA > 1.5)")
-        if ppda > 13:
-            weaknesses.append("• Pressing débil (espacios entre líneas)")
-        
-        return "\n".join(weaknesses) if weaknesses else "• Pocas debilidades evidentes"
-    
-    def _identify_tactical_key(self, match_data: Dict, team: str) -> str:
-        """Identify the tactical key for the team."""
-        ppda = match_data.get(f"{team}_ppda", 10)
-        xg = match_data.get(f"{team}_xg", 1.5)
-        
-        if ppda < 9 and xg > 1.5:
-            return "Dominio por pressing alto y finalización"
-        elif ppda > 12 and xg > 1.5:
-            return "Efectividad en contragolpes"
+        if avg_gf is not None and avg_gf <= 0.8:
+            weaknesses.append(f"• Ataque poco productivo ({avg_gf} goles/partido de media reciente)")
+        if avg_ga is not None and avg_ga >= 1.8:
+            weaknesses.append(f"• Defensa vulnerable ({avg_ga} goles encajados/partido de media reciente)")
+        if form.count("L") >= 3:
+            weaknesses.append(f"• Mala racha de resultados ({form})")
+
+        return "\n".join(weaknesses) if weaknesses else "• Sin debilidades evidentes en los datos disponibles"
+
+    def _goal_differential_analysis(self, match_data: Dict) -> str:
+        """Compare real recent goal output between both teams."""
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+
+        if home_gf is None or away_gf is None:
+            return NOT_AVAILABLE
+
+        diff = home_gf - away_gf
+        if diff > 0.5:
+            return f"{match_data.get('home_team', 'Local')} promedia {diff:.2f} goles más por partido en su racha reciente"
+        elif diff < -0.5:
+            return f"{match_data.get('away_team', 'Visitante')} promedia {abs(diff):.2f} goles más por partido en su racha reciente"
         else:
-            return "Control de juego y paciencia ofensiva"
-    
+            return "Producción ofensiva reciente equilibrada entre ambos equipos"
+
+    def _market_odds_summary(self, match_data: Dict) -> str:
+        """Real bookmaker odds (The Odds API), when available - never
+        fabricated, and never removes the bookmaker's margin (raw implied
+        probability, not a "true" probability)."""
+        odds = match_data.get("market_odds")
+        if not odds:
+            return NOT_AVAILABLE
+
+        avg_prices = odds.get("avg_decimal_odds") or {}
+        implied = odds.get("implied_probability_pct") or {}
+        if not avg_prices:
+            return NOT_AVAILABLE
+
+        lines = [
+            f"- {name}: cuota media {price} (prob. implícita {implied.get(name, 'N/D')}%)"
+            for name, price in avg_prices.items()
+        ]
+        count = odds.get("bookmakers_count", 0)
+        return f"Cuotas reales promediadas de {count} casa(s) de apuestas:\n" + "\n".join(lines)
+
     def _determine_tactical_advantage(self, match_data: Dict) -> str:
-        """Determine which team has the clearer tactical edge, comparing
-        pressing (PPDA) and attacking output (xG) between both teams."""
-        home_ppda = match_data.get("home_ppda", 10)
-        away_ppda = match_data.get("away_ppda", 10)
-        home_xg = match_data.get("home_xg", 1.5)
-        away_xg = match_data.get("away_xg", 1.5)
+        """Which team looks stronger based on real recent form and goals."""
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+        home_form = match_data.get("home_form", "")
+        away_form = match_data.get("away_form", "")
 
-        ppda_diff = away_ppda - home_ppda  # positive => home presses more
-        xg_diff = home_xg - away_xg
+        if home_gf is None or away_gf is None:
+            return NOT_AVAILABLE
 
-        if ppda_diff > 3 and xg_diff > 0.3:
-            return "LOCAL domina por pressing más intenso y mayor generación de peligro"
-        elif ppda_diff < -3 and xg_diff < -0.3:
-            return "VISITANTE domina por pressing más intenso y mayor generación de peligro"
-        elif abs(ppda_diff) > 3:
-            return f"{'LOCAL' if ppda_diff > 0 else 'VISITANTE'} presiona claramente más arriba"
-        elif abs(xg_diff) > 0.3:
-            return f"{'LOCAL' if xg_diff > 0 else 'VISITANTE'} genera más peligro ofensivo"
-        else:
-            return "Equilibrio táctico - sin ventaja clara en pressing ni generación de peligro"
+        home_score = home_form.count("W") * 3 + home_form.count("D")
+        away_score = away_form.count("W") * 3 + away_form.count("D")
 
-    # ==================== PHYSICAL ANALYSIS METHODS ====================
+        if abs(home_gf - away_gf) > 0.4 or abs(home_score - away_score) >= 4:
+            leader = "LOCAL" if (home_gf - away_gf) + (home_score - away_score) > 0 else "VISITANTE"
+            return f"{leader} llega en mejor forma/producción ofensiva reciente"
+        return "Equilibrio - sin ventaja clara en forma reciente"
+
+    # ==================== PHYSICAL ANALYSIS ====================
 
     def _calculate_fatigue_advantage(self, match_data: Dict) -> str:
-        """Calculate which team has physical advantage."""
-        home_rest = match_data.get("home_rest_days", 7)
-        away_rest = match_data.get("away_rest_days", 7)
-        home_sprints = match_data.get("home_sprints_last3", 450)
-        away_sprints = match_data.get("away_sprints_last3", 450)
-        
+        """Calculate which team has physical advantage based on real rest days."""
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+
+        if home_rest is None or away_rest is None:
+            return NOT_AVAILABLE
+
         rest_diff = home_rest - away_rest
-        sprint_diff = home_sprints - away_sprints
-        
-        if rest_diff >= 2 and sprint_diff < -50:
-            return "Ventaja física LOCAL (más descanso, menor desgaste)"
-        elif rest_diff <= -2 and sprint_diff > 50:
-            return "Ventaja física VISITANTE"
-        elif abs(rest_diff) <= 1:
-            return "Condiciones físicas similares"
-        else:
-            return f"Ventaja LOCAL por {rest_diff} días extra de descanso"
-    
-    def _determine_physical_advantage(self, match_data: Dict) -> str:
-        """Determine physical advantage in detail."""
-        return self._calculate_fatigue_advantage(match_data)
-    
-    # ==================== METRICS ANALYSIS ====================
-    
-    def _calculate_xg_differential(self, match_data: Dict) -> str:
-        """Calculate xG differential with interpretation."""
-        home_xg = match_data.get("home_xg", 1.5)
-        away_xg = match_data.get("away_xg", 1.5)
-        diff = home_xg - away_xg
-        
-        if diff > 0.5:
-            return f"+{diff:.2f} (ventaja LOCAL clara)"
-        elif diff < -0.5:
-            return f"{diff:.2f} (ventaja VISITANTE clara)"
-        else:
-            return f"{diff:+.2f} (equilibrado)"
-    
-    def _analyze_xg_trend(self, match_data: Dict) -> str:
-        """Analyze xG trend for both teams."""
-        home_xg_last5 = match_data.get("home_xg_last5", 1.5)
-        away_xg_last5 = match_data.get("away_xg_last5", 1.5)
-        
-        if home_xg_last5 > away_xg_last5 * 1.2:
-            return "LOCAL en racha ofensiva"
-        elif away_xg_last5 > home_xg_last5 * 1.2:
-            return "VISITANTE en racha ofensiva"
-        else:
-            return "Forma ofensiva similar"
-    
-    # ==================== CONTEXT ANALYSIS ====================
-    
-    def _assess_weather_impact(self, match_data: Dict) -> str:
-        """Assess weather impact on match."""
-        weather = match_data.get("weather", "Despejado")
-        
-        if "lluvia" in weather.lower():
-            return "Alto - Balón rápido, menos control técnico"
-        elif "viento" in weather.lower():
-            return "Medio - Afecta juego aéreo y pases largos"
-        else:
-            return "Bajo - Condiciones normales"
-    
-    def _assess_crowd_pressure(self, match_data: Dict) -> str:
-        """Assess crowd pressure impact."""
-        home_position = match_data.get("home_position", 10)
-        
-        if home_position <= 6:
-            return "Alto - Afición exigente por resultados"
-        elif home_position <= 15:
-            return "Medio - Presión moderada"
-        else:
-            return "Bajo - Sin presión significativa"
-    
-    def _assess_travel_fatigue(self, match_data: Dict) -> str:
-        """Assess travel fatigue for away team."""
-        # Simplified - would need real travel distance data
-        return "Medio - Viaje estándar"
-    
-    def _analyze_motivation(self, match_data: Dict) -> str:
-        """Analyze motivation factors."""
-        home_motivation = match_data.get("home_motivation", 7)
-        away_motivation = match_data.get("away_motivation", 7)
-        
-        factors = []
-        if home_motivation >= 9:
-            factors.append("LOCAL: Partido crucial")
-        if away_motivation >= 9:
-            factors.append("VISITANTE: Partido crucial")
-        
-        return "; ".join(factors) if factors else "Motivación estándar"
-    
-    def _identify_decisive_factor(self, match_data: Dict) -> str:
-        """Identify the single most decisive factor."""
-        # Priority: Physical > Tactical > Statistical
-        rest_diff = abs(match_data.get("home_rest_days", 7) - match_data.get("away_rest_days", 7))
-        
-        if rest_diff >= 3:
-            return "Ventaja física por descanso"
-        
-        xg_diff = abs(match_data.get("home_xg", 1.5) - match_data.get("away_xg", 1.5))
-        if xg_diff > 0.5:
-            return "Superioridad ofensiva (xG)"
-        
-        ppda_diff = abs(match_data.get("home_ppda", 10) - match_data.get("away_ppda", 10))
-        if ppda_diff > 3:
-            return "Dominio en pressing"
-        
-        return "Equilibrio táctico - detalles decidirán"
-    
-    def _analyze_critical_period(self, match_data: Dict) -> str:
-        """Analyze critical period (minutes 60-75)."""
-        home_sprints = match_data.get("home_sprints_last3", 450)
-        away_sprints = match_data.get("away_sprints_last3", 450)
-        
-        if home_sprints > away_sprints + 50:
-            return "LOCAL mantendrá intensidad - peligro en contraataques rivales"
-        elif away_sprints > home_sprints + 50:
-            return "VISITANTE con más energía en fase final"
-        else:
-            return "Ambos equipos con capacidad para definir en fase final"
-    
-    def _analyze_early_goals(self, match_data: Dict) -> str:
-        """Analyze early goal tendency."""
-        return "Partido probablemente equilibrado en inicio"
-    
-    def _identify_early_goal_vulnerability(self, match_data: Dict) -> str:
-        """Identify which team concedes early goals."""
-        return "Ningún equipo con vulnerabilidad marcada en primeros 15 min"
-    
+        if abs(rest_diff) <= 1:
+            return "Condiciones físicas similares (descanso equivalente)"
+        team = "LOCAL" if rest_diff > 0 else "VISITANTE"
+        return f"Ventaja física {team} por {abs(rest_diff)} día(s) más de descanso"
+
+    # ==================== HEAD-TO-HEAD ANALYSIS ====================
+
+    def _win_conditions(self, h2h: Dict, team_name: str, for_home: bool) -> str:
+        matches = h2h.get("matches") or []
+        if not matches:
+            return "Sin historial directo suficiente"
+
+        wins = 0
+        for m in matches:
+            home_goals, away_goals = m.get("home_goals", 0), m.get("away_goals", 0)
+            is_home = m.get("is_home_for_ref_team", False)
+            team_won = (home_goals > away_goals) if is_home else (away_goals > home_goals)
+            ref_is_this_team = is_home == for_home
+            if team_won and ref_is_this_team:
+                wins += 1
+
+        if wins == 0:
+            return f"Sin victorias en los últimos {len(matches)} enfrentamientos directos"
+        return f"Ha ganado {wins} de los últimos {len(matches)} enfrentamientos directos"
+
+    def _recurring_pattern(self, h2h: Dict) -> str:
+        btts = h2h.get("btts_pct")
+        over25 = h2h.get("over_2_5_pct")
+        if btts is None or over25 is None:
+            return "Sin historial directo suficiente para identificar patrones"
+        return f"BTTS en el {btts}% de los enfrentamientos directos, Over 2.5 en el {over25}%"
+
+    def _recent_form_impact(self, match_data: Dict) -> str:
+        home_injuries = len(match_data.get("home_injuries", []) or [])
+        away_injuries = len(match_data.get("away_injuries", []) or [])
+        if home_injuries == 0 and away_injuries == 0:
+            return "Sin bajas relevantes reportadas en ninguno de los dos equipos"
+        return f"{match_data.get('home_team', 'Local')}: {home_injuries} baja(s) reportada(s); {match_data.get('away_team', 'Visitante')}: {away_injuries} baja(s) reportada(s)"
+
     # ==================== INJURY ANALYSIS ====================
-    
+
     def _analyze_injuries(self, match_data: Dict, team: str) -> str:
         """Analyze injuries for a team."""
         injuries = match_data.get(f"{team}_injuries", [])
-        
+
         if not injuries:
             return "Sin bajas importantes"
-        
+
         analysis = []
-        for injury in injuries[:3]:  # Top 3 injuries
+        for injury in injuries[:3]:
             analysis.append(f"• {injury.get('player', 'Jugador')} ({injury.get('position', '')}) - Impacto: {injury.get('impact', 'Medio')}")
-        
+
         return "\n".join(analysis)
-    
+
     def _identify_key_players_out(self, match_data: Dict) -> str:
         """Identify key players unavailable."""
         key_out = []
-        
+
         for team in ["home", "away"]:
             injuries = match_data.get(f"{team}_injuries", [])
             for injury in injuries:
                 if injury.get("is_key_player", False):
                     key_out.append(f"{injury.get('player')} ({team})")
-        
+
         return ", ".join(key_out) if key_out else "Ningún jugador clave fuera"
-    
+
     def _assess_injury_impact(self, match_data: Dict) -> str:
         """Assess overall injury impact."""
         home_injuries = len(match_data.get("home_injuries", []))
         away_injuries = len(match_data.get("away_injuries", []))
         total = home_injuries + away_injuries
-        
+
         if total >= 5:
             return "Alto - Múltiples bajas importantes"
         elif total >= 3:
             return "Medio - Algunas bajas relevantes"
         else:
             return "Bajo - Sin impacto significativo"
-    
-    def _assess_replacements(self, match_data: Dict) -> str:
-        """Assess quality of replacements."""
-        return "Sustitutos de calidad disponible en ambos equipos"
-    
+
     # ==================== PREDICTION METHODS ====================
-    
+
     def _recommend_market(self, match_data: Dict) -> str:
-        """Recommend betting market based on analysis."""
-        # This would be more sophisticated in production
-        xg_diff = match_data.get("home_xg", 1.5) - match_data.get("away_xg", 1.5)
-        
-        if xg_diff > 0.5:
+        """Recommend betting market based on real recent goal output."""
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+
+        if home_gf is None or away_gf is None:
+            return "Sin datos suficientes para recomendar mercado"
+
+        diff = home_gf - away_gf
+        if diff > 0.5:
             return "Victoria local"
-        elif xg_diff < -0.5:
+        elif diff < -0.5:
             return "Victoria visitante o empate"
         else:
             return "Ambos equipos marcan (BTTS) o over/under"
-    
+
+    def _alternative_market(self, match_data: Dict) -> str:
+        h2h = match_data.get("h2h_structured") or {}
+        over25 = h2h.get("over_2_5_pct")
+        if over25 is not None and over25 >= 60:
+            return "Over 2.5 goles (respaldado por el historial directo)"
+        return "Sin alternativa clara con los datos disponibles"
+
     def _calculate_stake(self, match_data: Dict) -> int:
         """Calculate recommended stake (1-5 units)."""
         confidence = self._calculate_confidence(match_data)
-        
+
         if confidence >= 80:
             return 5
         elif confidence >= 65:
@@ -881,81 +639,136 @@ $live_tracking_indicators"""
             return 2
         else:
             return 1
-    
+
     def _calculate_confidence(self, match_data: Dict) -> int:
-        """Calculate confidence level (0-100)."""
-        # Simplified - would use ML model in production
+        """Calculate confidence level (0-100) from real, available signals only.
+        The fewer real signals we have, the lower the ceiling - we don't
+        backfill missing data with a neutral default to inflate confidence."""
         base_confidence = 50
-        
-        # Adjust based on xG differential
-        xg_diff = abs(match_data.get("home_xg", 1.5) - match_data.get("away_xg", 1.5))
-        base_confidence += xg_diff * 20
-        
-        # Adjust based on injuries
-        injury_impact = len(match_data.get("home_injuries", [])) + len(match_data.get("away_injuries", []))
+        signals_available = 0
+
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+        if home_gf is not None and away_gf is not None:
+            base_confidence += abs(home_gf - away_gf) * 15
+            signals_available += 1
+
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+        if home_rest is not None and away_rest is not None:
+            base_confidence += abs(home_rest - away_rest) * 3
+            signals_available += 1
+
+        injury_impact = len(match_data.get("home_injuries", []) or []) + len(match_data.get("away_injuries", []) or [])
         base_confidence -= injury_impact * 5
-        
-        # Adjust based on rest days
-        rest_diff = abs(match_data.get("home_rest_days", 7) - match_data.get("away_rest_days", 7))
-        base_confidence += rest_diff * 3
-        
-        return min(95, max(30, int(base_confidence)))
-    
+        if match_data.get("home_injuries") is not None:
+            signals_available += 1
+
+        h2h = match_data.get("h2h_structured") or {}
+        if h2h.get("matches"):
+            signals_available += 1
+
+        if signals_available == 0:
+            return 30
+
+        return min(90, max(30, int(base_confidence)))
+
     def _generate_technical_justification(self, match_data: Dict) -> str:
-        """Generate technical justification for prediction."""
+        """Generate technical justification for prediction, from real data only."""
         justifications = []
-        
-        xg_diff = match_data.get("home_xg", 1.5) - match_data.get("away_xg", 1.5)
-        if abs(xg_diff) > 0.3:
-            team = "LOCAL" if xg_diff > 0 else "VISITANTE"
-            justifications.append(f"Superioridad ofensiva clara del equipo {team} (xG differential: {xg_diff:+.2f})")
-        
-        rest_diff = match_data.get("home_rest_days", 7) - match_data.get("away_rest_days", 7)
-        if abs(rest_diff) >= 2:
-            team = "LOCAL" if rest_diff > 0 else "VISITANTE"
-            justifications.append(f"Ventaja física del equipo {team} ({abs(rest_diff)} días más de descanso)")
-        
-        ppda_diff = match_data.get("home_ppda", 10) - match_data.get("away_ppda", 10)
-        if abs(ppda_diff) > 3:
-            team = "LOCAL" if ppda_diff < 0 else "VISITANTE"
-            justifications.append(f"Pressing más efectivo del equipo {team} (PPDA diff: {abs(ppda_diff):.1f})")
-        
-        return "\n".join(justifications) if justifications else "Análisis basado en equilibrio táctico y factores contextuales"
-    
+
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+        if home_gf is not None and away_gf is not None and abs(home_gf - away_gf) > 0.4:
+            team = "LOCAL" if home_gf > away_gf else "VISITANTE"
+            justifications.append(f"Superioridad ofensiva reciente del equipo {team} ({home_gf} vs {away_gf} goles/partido)")
+
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+        if home_rest is not None and away_rest is not None and abs(home_rest - away_rest) >= 2:
+            team = "LOCAL" if home_rest > away_rest else "VISITANTE"
+            justifications.append(f"Ventaja física del equipo {team} ({abs(home_rest - away_rest)} días más de descanso)")
+
+        h2h = match_data.get("h2h_structured") or {}
+        if h2h.get("over_2_5_pct") is not None and h2h["over_2_5_pct"] >= 60:
+            justifications.append(f"Historial directo con tendencia goleadora (Over 2.5 en el {h2h['over_2_5_pct']}% de los enfrentamientos)")
+
+        return "\n".join(justifications) if justifications else "Datos insuficientes para una justificación técnica sólida - proceder con cautela"
+
     def _identify_risk_factors(self, match_data: Dict) -> str:
         """Identify main risk factors."""
         risks = []
-        
-        if len(match_data.get("home_injuries", [])) >= 3:
+
+        if len(match_data.get("home_injuries", []) or []) >= 3:
             risks.append("Múltiples bajas en equipo local")
-        if len(match_data.get("away_injuries", [])) >= 3:
+        if len(match_data.get("away_injuries", []) or []) >= 3:
             risks.append("Múltiples bajas en equipo visitante")
-        
-        rest_diff = abs(match_data.get("home_rest_days", 7) - match_data.get("away_rest_days", 7))
-        if rest_diff <= 1:
+
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+        if home_rest is not None and away_rest is not None and abs(home_rest - away_rest) <= 1:
             risks.append("Condiciones físicas similares - partido parejo")
-        
+
+        h2h = match_data.get("h2h_structured") or {}
+        if not h2h.get("matches"):
+            risks.append("Sin historial directo reciente entre estos equipos")
+
         return "\n".join(risks) if risks else "Riesgo bajo - análisis sólido"
-    
-    def _generate_dynamic_factors(self, enriched: Dict) -> Dict:
-        """Generate dynamic factors for the analysis."""
-        # Factor 1, 2, 3
-        enriched["factor_1"] = "Superioridad táctica en pressing"
-        enriched["factor_2"] = "Ventaja física por descanso"
-        enriched["factor_3"] = "Eficiencia en finalización"
-        
-        # Alternatives
-        enriched["alternative_market_1"] = "Over 2.5 goles"
-        enriched["suggested_combination"] = "Victoria local + Over 1.5 goles"
-        enriched["market_rejections"] = "Empate - xG no respalda igualdad"
-        
-        # Summary
-        enriched["executive_summary"] = "Ventaja táctica y física clara del equipo local. Pressing alto y mayor descanso generan superioridad esperada."
-        enriched["main_risk"] = "Fatiga acumulada podría reducir intensidad en minutos finales"
-        enriched["alternative"] = "Considerar Over 2.5 goles como alternativa más segura"
-        
+
+    def _identify_decisive_factor(self, match_data: Dict) -> str:
+        """Identify the single most decisive factor from real data."""
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+        if home_rest is not None and away_rest is not None and abs(home_rest - away_rest) >= 3:
+            return "Ventaja física por descanso"
+
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+        if home_gf is not None and away_gf is not None and abs(home_gf - away_gf) > 0.5:
+            return "Diferencia en producción ofensiva reciente"
+
+        return "Equilibrio en los datos disponibles - detalles decidirán"
+
+    def _generate_dynamic_factors(self, enriched: Dict, match_data: Dict) -> Dict:
+        """Generate the top supporting factors and executive summary from
+        whatever real signals are actually available, instead of fixed text."""
+        factors = []
+
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+        if home_gf is not None and away_gf is not None and abs(home_gf - away_gf) > 0.4:
+            team = enriched.get("home_team") if home_gf > away_gf else enriched.get("away_team")
+            factors.append(f"Mejor producción ofensiva reciente de {team}")
+
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+        if home_rest is not None and away_rest is not None and abs(home_rest - away_rest) >= 2:
+            team = enriched.get("home_team") if home_rest > away_rest else enriched.get("away_team")
+            factors.append(f"Ventaja de descanso para {team}")
+
+        h2h = match_data.get("h2h_structured") or {}
+        if h2h.get("matches"):
+            factors.append("Historial directo disponible como referencia")
+
+        while len(factors) < 3:
+            factors.append("Sin dato adicional disponible")
+
+        enriched["factor_1"], enriched["factor_2"], enriched["factor_3"] = factors[:3]
+
+        if factors[0] == "Sin dato adicional disponible":
+            enriched["executive_summary"] = (
+                "Datos reales limitados para este partido - el pronóstico se apoya "
+                "principalmente en el historial directo y las lesiones reportadas."
+            )
+        else:
+            enriched["executive_summary"] = (
+                f"{factors[0]}. " + (f"{factors[1]}." if factors[1] != "Sin dato adicional disponible" else "")
+            ).strip()
+
+        enriched["main_risk"] = enriched.get("risk_factors", "Sin riesgos identificados")
+
         return enriched
-    
+
     def get_prompt_stats(self) -> Dict[str, int]:
         """Get statistics about prompt templates."""
         return {

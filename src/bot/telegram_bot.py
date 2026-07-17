@@ -704,9 +704,9 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
         """
         logger.info("Stopping Telegram bot...")
         try:
-            # Close match analyzer components
+            # Close match analyzer components (primary + fallback providers)
             if hasattr(self, 'match_analyzer'):
-                await self.match_analyzer.stats_fetcher.close()
+                await self.match_analyzer.close()
         except Exception as e:
             logger.error(f"Error closing components: {e}")
 

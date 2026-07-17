@@ -168,43 +168,32 @@ class AnalysisFormatter:
         """
         home_team = match_data.get("home_team", "Local")
         away_team = match_data.get("away_team", "Visitante")
-        
-        # Get key metrics
-        home_xg = match_data.get("home_xg", 1.5)
-        away_xg = match_data.get("away_xg", 1.5)
-        home_rest = match_data.get("home_rest_days", 7)
-        away_rest = match_data.get("away_rest_days", 7)
-        home_ppda = match_data.get("home_ppda", 10)
-        away_ppda = match_data.get("away_ppda", 10)
-        
-        # Generate insights based on data
+
+        # Real signals only - None means "not available", not "assume average".
+        home_rest = match_data.get("home_rest_days")
+        away_rest = match_data.get("away_rest_days")
+        home_gf = match_data.get("home_avg_goals_for")
+        away_gf = match_data.get("away_avg_goals_for")
+
         insights = []
-        
+
         # Physical advantage
-        if abs(home_rest - away_rest) >= 2:
+        if home_rest is not None and away_rest is not None and abs(home_rest - away_rest) >= 2:
             if home_rest > away_rest:
                 insights.append(f"💪 Ojo aquí: el {home_team} llega más fresco. {home_rest - away_rest} días más de descanso se nota en el minuto 70.")
             else:
                 insights.append(f"⚡ Cuidado: el {away_team} viene con más descanso. Eso es ventaja en la fase final.")
-        
-        # Pressing advantage
-        if abs(home_ppda - away_ppda) > 3:
-            if home_ppda < away_ppda:
-                insights.append(f"🔥 El {home_team} presiona más. Va a recuperar arriba y generar ocasiones.")
+
+        # Recent goal output differential
+        if home_gf is not None and away_gf is not None and abs(home_gf - away_gf) > 0.4:
+            if home_gf > away_gf:
+                insights.append(f"📊 Los números no mienten: el {home_team} llega marcando más. {home_gf:.2f} goles/partido vs {away_gf:.2f} del {away_team}.")
             else:
-                insights.append(f"🛡️ El {away_team} deja jugar. Si el {home_team} no aprovecha, lo va a sufrir en las contras.")
-        
-        # xG differential
-        xg_diff = home_xg - away_xg
-        if abs(xg_diff) > 0.4:
-            if xg_diff > 0:
-                insights.append(f"📊 Los números no mienten: el {home_team} genera más peligro. {home_xg:.2f} xG vs {away_xg:.2f} xG.")
-            else:
-                insights.append(f"📊 Ojo con el {away_team}: {away_xg:.2f} xG es muy buena cifra para ser visitante.")
-        
-        # Default insight if no clear advantage
+                insights.append(f"📊 Ojo con el {away_team}: {away_gf:.2f} goles/partido es muy buena cifra para ser visitante.")
+
+        # Default insight if no clear advantage or not enough data
         if not insights:
-            insights.append("🎯 Partido igualado. Los detalles decidirán: set pieces, concentración, y quién quiera más.")
+            insights.append("🎯 Partido igualado con los datos disponibles. Los detalles decidirán: set pieces, concentración, y quién quiera más.")
         
         # Format as Preferente-style insight
         insight_text = "\n".join(insights)
