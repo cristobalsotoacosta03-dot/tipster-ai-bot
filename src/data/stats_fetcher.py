@@ -21,6 +21,7 @@ import logging
 from datetime import datetime
 
 from config.settings import settings
+from src.data.known_teams import correct_team_name_typo
 from src.data.providers.base import (
     FixtureResult,
     HeadToHead,
@@ -123,6 +124,15 @@ class StatsFetcher:
 
         try:
             data = await self._make_request("teams", {"search": team_name})
+
+            if not data or len(data) == 0:
+                # Retry once with a corrected name if this looks like a typo
+                # of a well-known team (e.g. "Real Madrd" -> "Real Madrid"),
+                # rather than failing outright and burning the user's request.
+                corrected = correct_team_name_typo(team_name)
+                if corrected:
+                    logger.info(f"Team '{team_name}' not found, retrying as '{corrected}'")
+                    data = await self._make_request("teams", {"search": corrected})
 
             if not data or len(data) == 0:
                 logger.warning(f"Team not found: {team_name}")

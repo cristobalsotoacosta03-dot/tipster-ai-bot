@@ -112,6 +112,45 @@ class TestStatsFetcher:
         assert h2h.summary_text == "Sin historial reciente"
         assert h2h.btts_pct is None
 
+    # ==================== TEAM INFO / TYPO CORRECTION ====================
+
+    @pytest.mark.asyncio
+    async def test_get_team_info_retries_with_corrected_typo(self, fetcher):
+        """A misspelled well-known team should be retried with the
+        corrected name instead of failing outright."""
+        calls = []
+
+        async def fake_request(endpoint, params=None):
+            calls.append(params["search"])
+            if params["search"] == "Real Madrid":
+                return [{"team": {"id": 541, "name": "Real Madrid", "country": "Spain"}}]
+            return []
+
+        fetcher._make_request = AsyncMock(side_effect=fake_request)
+        info = await fetcher.get_team_info("Real Madrd")
+
+        assert calls == ["Real Madrd", "Real Madrid"]
+        assert info["name"] == "Real Madrid"
+
+    @pytest.mark.asyncio
+    async def test_get_team_info_no_retry_when_found_first_try(self, fetcher):
+        fetcher._make_request = AsyncMock(
+            return_value=[{"team": {"id": 529, "name": "Barcelona", "country": "Spain"}}]
+        )
+        info = await fetcher.get_team_info("Barcelona")
+
+        fetcher._make_request.assert_awaited_once()
+        assert info["name"] == "Barcelona"
+
+    @pytest.mark.asyncio
+    async def test_get_team_info_unrelated_name_stays_not_found(self, fetcher):
+        fetcher._make_request = AsyncMock(return_value=[])
+        info = await fetcher.get_team_info("xyzqwerty123")
+
+        assert info is None
+        # No known-team is close enough, so it should not retry with a guess.
+        fetcher._make_request.assert_awaited_once()
+
     # ==================== MATCH DATA ====================
 
     @pytest.mark.asyncio
