@@ -151,6 +151,41 @@ class TestStatsFetcher:
         # No known-team is close enough, so it should not retry with a guess.
         fetcher._make_request.assert_awaited_once()
 
+    # ==================== LEAGUE STANDINGS ====================
+
+    @pytest.mark.asyncio
+    async def test_get_league_table_parses_real_api_shape(self, fetcher):
+        """Regression test: standings[0] is the list of teams directly
+        (API-Football's real shape). A previous extra `.get("all", [])`
+        here made every real call raise AttributeError, silently caught
+        and returning [] - standings were always empty in production."""
+        fetcher._make_request = AsyncMock(return_value=[{
+            "league": {
+                "standings": [[
+                    {
+                        "rank": 1,
+                        "team": {"id": 541, "name": "Real Madrid"},
+                        "points": 70,
+                        "all": {"played": 30, "win": 22, "draw": 4, "lose": 4,
+                                 "goals": {"for": 60, "against": 25}},
+                    },
+                ]]
+            }
+        }])
+
+        table = await fetcher.get_league_table(140, 2025)
+
+        assert len(table) == 1
+        assert table[0]["team_name"] == "Real Madrid"
+        assert table[0]["played"] == 30
+        assert table[0]["won"] == 22
+        assert table[0]["goals_for"] == 60
+
+    @pytest.mark.asyncio
+    async def test_get_league_table_empty_on_no_data(self, fetcher):
+        fetcher._make_request = AsyncMock(return_value=None)
+        assert await fetcher.get_league_table(140, 2025) == []
+
     # ==================== MATCH DATA ====================
 
     @pytest.mark.asyncio

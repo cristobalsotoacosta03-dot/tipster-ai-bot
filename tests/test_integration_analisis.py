@@ -191,3 +191,15 @@ class TestAnalisisEndToEnd:
         status_message.edit_text.assert_awaited_once()
         assert "No pude encontrar datos" in status_message.edit_text.await_args.args[0]
         bot.database.save_analysis.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_successful_analysis_updates_stats_counters(self, bot):
+        update = make_update()
+        await bot.analisis_command(update, make_context(["Real", "Madrid", "vs", "Barcelona"]))
+
+        assert bot._stats["analyses_served"] == 1
+        assert bot._stats["analysis_errors"] == 0
+        # >= 0, not > 0: with everything mocked this can legitimately clock
+        # in at 0.0 depending on timer resolution - the counter itself
+        # incrementing is what matters here, not a specific duration.
+        assert bot._stats["total_latency_seconds"] >= 0

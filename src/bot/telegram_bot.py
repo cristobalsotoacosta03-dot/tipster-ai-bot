@@ -3,6 +3,8 @@ Main Telegram Bot implementation.
 Handles bot initialization, command routing, and message processing.
 """
 import asyncio
+import time
+from datetime import datetime
 from typing import Optional, Dict, Any
 from aiohttp import web
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -61,6 +63,14 @@ class TelegramBot:
         # Set when running in webhook mode; used by stop() to know how
         # to shut down cleanly.
         self._webhook_runner: Optional[web.AppRunner] = None
+
+        # Lightweight in-process counters for /status - reset on every
+        # restart/redeploy since there's nowhere durable to put them yet
+        # (same limitation as the rest of the app on Render's Free tier
+        # without a persistent DB). Good enough to answer "is this thing
+        # actually being used" without adding a new paid service.
+        self._started_at = datetime.now()
+        self._stats = {"analyses_served": 0, "analysis_errors": 0, "total_latency_seconds": 0.0}
 
         logger.info("Telegram bot initialized with Match Analyzer")
     
@@ -245,6 +255,7 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
             # to _format_premium_analysis below — passing "full" meant VIP
             # users were silently served the free/express layout with the
             # "subscribe to VIP" upsell hooks, despite already being VIP.
+            request_started = time.monotonic()
             analysis_result = await self.match_analyzer.analyze_match(
                 home_team=home_team,
                 away_team=away_team,
@@ -294,9 +305,13 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
                     "from_cache": analysis_result.get("from_cache", False),
                 })
 
+            self._stats["analyses_served"] += 1
+            self._stats["total_latency_seconds"] += time.monotonic() - request_started
+
             logger.info(f"Analysis sent to user {user_id}")
-            
+
         except Exception as e:
+            self._stats["analysis_errors"] += 1
             logger.error(f"Error in analisis_command: {e}", exc_info=True)
             await update.message.reply_text(
                 "❌ Error al procesar el análisis. Por favor, inténtalo de nuevo."
@@ -351,23 +366,37 @@ Ejemplo: `/analisis Real Madrid vs Barcelona`
         Show bot status and statistics.
         """
         try:
-            # TODO: Add real statistics on Día 3
-            status_message = """
+            claude_status = "Conectado" if self.match_analyzer.claude_client.enabled else "No configurado"
+
+            served = self._stats["analyses_served"]
+            avg_latency = (
+                self._stats["total_latency_seconds"] / served if served else None
+            )
+            uptime = datetime.now() - self._started_at
+            uptime_hours = uptime.total_seconds() / 3600
+
+            stats_lines = [
+                f"📈 Análisis servidos desde el último reinicio: {served}",
+                f"⚠️ Errores: {self._stats['analysis_errors']}",
+            ]
+            if avg_latency is not None:
+                stats_lines.append(f"⏱️ Latencia media: {avg_latency:.1f}s")
+            stats_lines.append(f"🕐 Activo desde hace: {uptime_hours:.1f}h")
+
+            status_message = f"""
 ✅ **Estado del Servicio - Tipster IA**
 
 **Sistema:** Operativo
 🤖 **Bot:** En línea
-🧠 **Claude AI:** Conectado
-📊 **API de Datos:** Configurada
+🧠 **Claude AI:** {claude_status}
+📊 **API de Datos:** {"Configurada" if self.match_analyzer.stats_fetcher.api_key else "No configurada"}
 
-**Estadísticas:**
-👥 Usuarios activos: Próximamente
-📈 Análisis generados: Próximamente
-🎯 Precisión del modelo: Próximamente
+**Estadísticas (desde el último reinicio):**
+{chr(10).join(stats_lines)}
 
-**Última actualización:** Hoy
+ℹ️ *Los contadores se reinician en cada redeploy — todavía no hay base de datos persistente para históricos.*
             """.strip()
-            
+
             await update.message.reply_text(
                 status_message,
                 parse_mode="Markdown"

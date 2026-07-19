@@ -507,7 +507,14 @@ class StatsFetcher:
                 return []
 
             standings = []
-            for team_data in data[0].get("league", {}).get("standings", [{}])[0].get("all", []):
+            # API-Football returns standings as [[team1, team2, ...]] (one
+            # group). Each team dict has its own "all" sub-object (played,
+            # win, goals...) used below - standings[0] is already the list
+            # of teams, it does NOT itself have an "all" key. The previous
+            # trailing .get("all", []) here was wrong and made every real
+            # call raise AttributeError (caught by the except below),
+            # silently returning [] and leaving standings always empty.
+            for team_data in data[0].get("league", {}).get("standings", [[]])[0]:
                 team = team_data.get("team", {})
                 standings.append({
                     "position": team_data.get("rank"),
