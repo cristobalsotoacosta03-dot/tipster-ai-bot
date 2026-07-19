@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     telegram_consensus_api_id: Optional[str] = None
     telegram_consensus_api_hash: Optional[str] = None
     telegram_consensus_session: Optional[str] = None
+    # Comma-separated public channel usernames to monitor for consensus
+    # (e.g. "tipster_juan,picks_maria"). Empty/unset means the feature has
+    # no channels configured yet - see src/consensus/.
+    telegram_consensus_channels: Optional[str] = None
     
     # ===========================================
     # REDIS CACHE (Upstash)
@@ -108,6 +112,13 @@ class Settings(BaseSettings):
     def cache_ttl_seconds(self) -> int:
         """Convert cache TTL from hours to seconds."""
         return self.cache_ttl_hours * 3600
+
+    @property
+    def consensus_channel_list(self) -> list[str]:
+        """Parsed list of channel usernames from telegram_consensus_channels."""
+        if not self.telegram_consensus_channels:
+            return []
+        return [c.strip() for c in self.telegram_consensus_channels.split(",") if c.strip()]
 
 
 # Global settings instance
