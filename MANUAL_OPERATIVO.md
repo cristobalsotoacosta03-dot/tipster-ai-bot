@@ -152,6 +152,131 @@ f1b463f feat: soporte opcional de Postgres en DatabaseManager vía DATABASE_URL
 7d577a1 docs: contenido de marketing listo — bienvenida, piezas, copy VIP
 ```
 
+### Sesión 19/07/2026 — Continuación autónoma: consenso desbloqueado a medias, calidad, y reubicación del repo
+
+Retomé la sesión con el objetivo de seguir el trabajo pendiente de "continuación 3"
+(consenso de tipsters) y de "continuación 4" (la sesión de 5h autónoma anterior).
+Detecté que Cline había estado trabajando en paralelo en este mismo repo local — el
+usuario le pidió que parase y yo tomé el control en solitario desde ahí. A mitad de
+sesión el usuario pidió además reorganizar todos sus proyectos locales; esa parte se
+documenta al final de esta sección.
+
+**Estado del `.env` local al empezar esta sesión**: a diferencia de la sesión de 5h
+anterior (sin ningún secreto real disponible), esta vez el `.env` local (creado por
+Cline) tenía `ANTHROPIC_API_KEY` real y `STRIPE_API_KEY` en modo test reales, pero
+`TELEGRAM_BOT_TOKEN` y `API_FOOTBALL_KEY` seguían siendo placeholders — **la
+verificación real de `/analisis` en producción sigue sin poder hacerse desde este
+entorno**, igual que en sesiones anteriores. `TELEGRAM_CONSENSUS_API_ID` y
+`TELEGRAM_CONSENSUS_API_HASH` sí estaban confirmados (`36881932` /
+`b235ce6dd10099edd1ec3d5431ce4a57`, verificados por texto desde el propio panel de
+my.telegram.org), pero `TELEGRAM_CONSENSUS_SESSION` seguía vacío — el login de
+Telethon sigue siendo un paso manual del usuario (el código de verificación le llega
+a él), pendiente de que lo ejecute.
+
+**1. Marketing honesto (`b90769e`)**
+- `docs/marketing/content_strategy.md`: quitadas todas las cifras de acierto inventadas
+  (el "68% de acierto") y los testimonios ficticios ("Carlos M., Madrid", etc.)
+  detectados en la sesión anterior. Sustituidos por placeholders `[PENDIENTE]`
+  explícitos — el producto no tiene historial de aciertos ni clientes reales todavía,
+  publicar esas cifras tal cual habría sido publicidad engañosa.
+
+**2. Fuzzy matching de nombres de equipo (`82a84ca`)**
+- `src/data/known_teams.py` nuevo: lista curada de equipos (La Liga + top europeo +
+  selecciones) y `correct_team_name_typo()` (`difflib.get_close_matches`, sin
+  dependencias nuevas).
+- `stats_fetcher.get_team_info`: si la búsqueda exacta en API-Football falla,
+  reintenta una vez con el nombre corregido antes de rendirse. No sustituye a la API
+  como fuente de verdad, solo evita gastar el request del usuario en un typo obvio
+  ("Real Madrd" → "Real Madrid").
+
+**3. Módulo de consenso de tipsters — listo pero inactivo (`4b219b9`)**
+- `src/consensus/` nuevo: `signal_detector.py` (heurística por palabras clave, sin
+  guardar nunca el texto literal del mensaje), `aggregator.py` (agregación anónima
+  entre canales, nunca atribuye a uno concreto), `channel_reader.py` (wrapper de
+  Telethon con cliente inyectable, testeado con un fake, cero llamadas reales).
+- `config/settings.py`: nuevo `TELEGRAM_CONSENSUS_CHANNELS` (lista separada por comas)
+  y la propiedad `consensus_channel_list`.
+- **Sigue sin conectarse a `/analisis`** — falta que el usuario complete el login de
+  Telethon (genera `TELEGRAM_CONSENSUS_SESSION`) y dé la lista real de canales de
+  tipsters de confianza. El punto de integración queda documentado en
+  `aggregator.py` (el string `summary_text` es lo único que sería seguro pasar a
+  `prompt_engine.py` como contexto extra).
+
+**4. Lead magnet real (`c5f5b6c`)**
+- `docs/marketing/lead_magnet.md`: desarrolla el outline que ya existía en
+  `content_strategy.md` ("5 Errores que Te Hacen Perder Dinero Apostando"). Contenido
+  educativo genérico, sin cifras propias ni testimonios. Borrador para revisión.
+
+**5. Tests de integración end-to-end de `/analisis` (`ce70e99`)**
+- `tests/test_integration_analisis.py` nuevo: a diferencia de los tests existentes
+  (que mockean `MatchAnalyzer` por completo), este ejercita el flujo real
+  `TelegramBot → MatchAnalyzer → StatsFetcher → PromptEngine → ClaudeClient →
+  AnalysisFormatter`, mockeando solo la red (API-Football y Anthropic). Incluye
+  regresión explícita para el bug ya corregido de VIP recibiendo el prompt "express"
+  en vez de "premium", verificación de que el caché en memoria evita una segunda
+  llamada real, y que un equipo no encontrado no rompe el handler.
+- Al escribir estos tests hubo que forzar `cache_manager.enabled = False` en el
+  fixture: el primer intento colgó 2 minutos porque el `.env` local tiene credenciales
+  reales de Upstash y el test intentaba una llamada de red real a Redis sin querer.
+
+**6. Bug real encontrado por los tests de integración (`0076086`)**
+- `stats_fetcher.get_league_table` tenía un `.get("all", [])` de más sobre
+  `standings[0]` (que la API ya devuelve como la lista de equipos directamente, no
+  como un dict con esa clave). Esto hacía que **toda llamada real** lanzara
+  `AttributeError`, capturado en silencio por el `except` genérico del método —
+  las clasificaciones de liga llevaban tiempo volviendo siempre vacías (`[]`) en
+  producción sin que nada lo señalara, nunca crasheaba visible para el usuario.
+  Corregido con test de regresión (`test_get_league_table_parses_real_api_shape`).
+
+**7. Verificación real del webhook de Stripe (`19ee977`)**
+- `scripts/verify_stripe_webhook.py` nuevo: firma un evento `checkout.session.completed`
+  con el `STRIPE_WEBHOOK_SECRET` real (modo test) vía HMAC local (sin red, sin
+  tarjeta) y confirma que `PaymentHandler.handle_webhook()` lo verifica y procesa
+  correctamente. Ejecutado en esta sesión: **OK**, confirmado. Sigue pendiente que el
+  usuario haga un pago de prueba real de punta a punta (checkout en el navegador) —
+  esto solo confirma que la firma/procesamiento del lado del servidor funciona.
+
+**8. `/status` con estadísticas reales (`0076086`)**
+- `telegram_bot.py`: contadores en memoria (`analyses_served`, `analysis_errors`,
+  latencia media, uptime) — sustituyen los "Próximamente" que había. Se reinician en
+  cada redeploy (no hay BD persistente todavía, mismo límite que el resto del
+  proyecto). `/status` también refleja ahora si Claude/API-Football están realmente
+  configurados en vez de texto fijo.
+
+**Estado de tests al cierre**: `pytest -q` → **154 passed** (antes de esta sesión: 121).
+
+**Reorganización de carpetas (a petición del usuario, a mitad de sesión)**:
+El usuario pidió convertir su carpeta de proyectos en una estructura limpia. Resultado:
+- Todo movido a `C:\Users\Cristóbal Soto\Desktop\CSA-Claude-Proyects\`, con cada
+  proyecto en su propia carpeta con su propio `.git`:
+  - `CSA-Claude-Proyects\tipster-ai-bot\` — este repo (remoto sin cambios).
+  - `CSA-Claude-Proyects\gestiobra\` — la app GestiObra (remoto sin cambios).
+  - `CSA-Claude-Proyects\vectorial-web\` — extraído de dentro de `gestiobra` (estaba
+    fusionado ahí vía `git subtree`, sin remoto propio). Se le hizo `git subtree
+    split` para conservar su historial real (4 commits, incluido el origen como
+    landing de GestiObra antes del rebrand a VECTORIAL) y se creó como repo
+    independiente **sin remoto todavía** — falta crear el repo en GitHub y hacer el
+    primer push cuando el usuario lo decida.
+- La carpeta antigua `Desktop\gestiobra` (raíz de la ventana de VS Code donde corría
+  esta sesión) quedó vacía pero no se pudo borrar del todo porque Windows la bloqueaba
+  por estar en uso — se borra sola en cuanto se cierre esa ventana.
+- Pendiente (bloqueado en autenticación interactiva que solo puede hacer el usuario):
+  `gh auth login` para poder inventariar/organizar los repos remotos de GitHub con el
+  CLI (ya instalado, v2.96.0, en `C:\Program Files\GitHub CLI\gh.exe`).
+
+**Rollback si algo se ve mal en Render tras estos pushes**: `git revert <sha>` del
+commit problemático + `git push` (nunca `reset --hard` sobre `main`).
+
+```
+b90769e docs: quitar cifras de acierto y testimonios inventados del plan de marketing
+82a84ca feat: fuzzy matching de nombres de equipo con typos comunes en /analisis
+4b219b9 feat: módulo de consenso de tipsters listo pero inactivo (src/consensus/)
+c5f5b6c docs: lead magnet real (5 errores al apostar) — borrador para revisión
+ce70e99 test: cobertura de integración end-to-end del pipeline /analisis
+19ee977 chore: script de verificación real del webhook de Stripe (modo test)
+0076086 feat: estadísticas reales en /status + fix de bug real en get_league_table
+```
+
 ### Reglas de negocio vigentes
 
 1. No invertir en publicidad hasta **10 clientes VIP de pago**.
@@ -223,25 +348,26 @@ f1b463f feat: soporte opcional de Postgres en DatabaseManager vía DATABASE_URL
 - [x] Borradores de contenido de marketing (bienvenida, piezas, copy VIP) — 17/07/2026
 
 ### Crítico (antes de clientes reales)
-- [ ] Pago de prueba Stripe (flujo completo)
+- [ ] Pago de prueba Stripe (flujo completo end-to-end en navegador — la firma/procesamiento del webhook ya se verificó real el 19/07/2026, ver `scripts/verify_stripe_webhook.py`)
 - [ ] Crear proyecto Postgres gratis (Supabase/Neon) y activar `DATABASE_URL` en Render — código ya listo, ver sección de arriba
 - [ ] Confirmar en real que `/analisis` responde tras el fix de API-Football (no verificado esta sesión: sin credenciales locales)
 
 ### Producto
 - [ ] Cerrar y liberar `/analisis` (pipeline funcional, pendiente de la confirmación en real de arriba)
 - [ ] Probar cancelación de suscripción con pago real
-- [ ] (Opcional) Fuzzy matching de nombres de equipo en `/analisis`
+- [x] Fuzzy matching de nombres de equipo en `/analisis` — 19/07/2026
+- [ ] Consenso de tipsters: falta login de Telethon del usuario + lista de canales (código listo, ver `src/consensus/`)
 
 ### Captación (cuando el producto esté listo)
 - [x] Mensaje de bienvenida del canal gratis (borrador, ver `docs/marketing/channel_welcome_message.md`)
 - [x] Primeros contenidos (borrador, ver `docs/marketing/content_pieces_batch1.md`)
-- [ ] Lead magnet (opcional, sigue pendiente — solo hay un outline en `content_strategy.md`)
-- [ ] Revisar y quitar cifras/testimonios inventados de `content_strategy.md` antes de usarlo (ver sesión 17/07/2026 continuación 4)
+- [x] Lead magnet — 19/07/2026, ver `docs/marketing/lead_magnet.md`
+- [x] Cifras/testimonios inventados quitados de `content_strategy.md` — 19/07/2026
 
 ### Futuro
 - [ ] Publicación automática de picks
-- [ ] Tests de integración
-- [ ] Monitoreo avanzado
+- [x] Tests de integración — 19/07/2026, ver `tests/test_integration_analisis.py`
+- [x] Monitoreo ligero (`/status` con contadores reales) — 19/07/2026; monitoreo avanzado (dashboard externo, alertas) sigue pendiente
 
 ---
 
