@@ -71,7 +71,7 @@
 [0-3s] "Deja de apostar a tu equipo favorito"
 [3-15s] "El 90% de apostadores pierden por sesgo emocional"
 [15-30s] "Yo uso IA para analizar pressing, fatiga, xG..."
-[30-45s] "Resultado: 68% de acierto en el último mes"
+[30-45s] "[PENDIENTE: sustituir por cifra de acierto real cuando haya histórico suficiente — no publicar con un dato inventado]"
 [45-60s] "Link en bio para análisis objetivos"
 ```
 
@@ -83,8 +83,8 @@
 
 **Ejemplo guión:**
 ```
-[0-3s] "Acierto de ayer: Atlético 2-1 Valencia ✅"
-[3-15s] "Predije victoria local con 72% confianza"
+[0-3s] "[PENDIENTE: usar un resultado real y verificable del bot, no un ejemplo inventado]"
+[3-15s] "[PENDIENTE: cifra de confianza real de ese análisis, tal como la reportó el bot]"
 [15-30s] "El Atlético presionó más (PPDA 8.5) y ganó"
 [30-45s] "Hoy tengo 3 análisis premium, link en bio"
 [45-60s] "El value betting es a largo plazo"
@@ -124,8 +124,8 @@
 [VISUAL] Captura de pantalla del bot analizando
 [AUDIO] "Yo analizo pressing, fatiga, xG... 50 variables"
 
-[VISUAL] Resultado: "68% acierto último mes"
-[AUDIO] "Resultado: 68% de acierto"
+[VISUAL] Resultado: "[PENDIENTE: cifra de acierto real, no publicar sin histórico verificado]"
+[AUDIO] "[PENDIENTE: mismo dato — no inventar un porcentaje]"
 
 [VISUAL] CTA: "Link en bio"
 [AUDIO] "Análisis gratuitos en mi Telegram, link en bio"
@@ -166,7 +166,7 @@
 
 ```
 [VISUAL] Captura de pantalla: balance positivo
-[AUDIO] "Gané €500 apostando el mes pasado"
+[AUDIO] "[PENDIENTE: usar una cifra de ganancia real y verificable de un usuario/caso real, no inventar una]"
 
 [VISUAL] Gráfico: "No es suerte, es método"
 [AUDIO] "No es suerte, es un método científico"
@@ -283,7 +283,7 @@ que analiza 50+ variables tácticas por partido para encontrar VALUE real.
 ✅ Análisis táctico-profesional (pressing, xG, fatiga)
 ✅ Seguimiento en vivo durante partidos
 ✅ Grupo VIP exclusivo en Telegram
-✅ Historial de resultados (68% acierto)
+✅ Historial de resultados ([PENDIENTE: cifra real cuando haya histórico suficiente — no publicar un % inventado])
 ✅ Soporte prioritario
 
 💰 Inversión: €29.99/mes o €299/año (ahorra 2 meses)
@@ -298,7 +298,8 @@ que analiza 50+ variables tácticas por partido para encontrar VALUE real.
 Respuesta: Los tips gratuitos son un 20% del análisis.
 El VIP incluye justificación técnica completa, stake recomendado,
 seguimiento en vivo y acceso a comunidad exclusiva.
-Además, nuestros miembros tienen un 68% de acierto vs 52% promedio.
+[PENDIENTE: si se quiere citar una cifra de acierto comparativa, debe salir de datos reales
+propios (histórico de la BD) — no inventar un % ni una comparación con un "promedio" no verificado.]
 ```
 
 **2. "¿Es seguro apostar?"**
@@ -324,18 +325,18 @@ Sin preguntas, sin complicaciones.
 
 ### Testimonios (Preparar Estructura)
 
+**⚠️ Los nombres y citas de abajo son solo una plantilla de FORMATO (cuántos, longitud, tono)
+para cuando existan testimonios reales de clientes VIP de pago. El producto no tiene
+clientes reales todavía — no publicar estos ejemplos como si fueran testimonios genuinos,
+sería publicidad engañosa. Sustituir cada línea por una cita real y con consentimiento
+explícito del cliente antes de publicar cualquier testimonio.**
+
 ```
-⭐ "Llevo 2 meses y he recuperado la inversión x3"
-   - Carlos M., Madrid
+⭐ "[EJEMPLO DE FORMATO — sustituir por cita real]"
+   - [Nombre real, con permiso]
 
-⭐ "El análisis táctico es brutal, se nota que saben de fútbol"
-   - Ana R., Barcelona
-
-⭐ "Pasé de perder 200€/mes a ganar 150€/mes"
-   - Miguel P., Valencia
-
-⭐ "El grupo VIP es genial, aprendo mucho"
-   - Laura S., Sevilla
+⭐ "[EJEMPLO DE FORMATO — sustituir por cita real]"
+   - [Nombre real, con permiso]
 ```
 
 ---
